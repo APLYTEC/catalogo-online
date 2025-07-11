@@ -5,7 +5,14 @@ from pathlib import Path
 
 @st.cache_data
 def cargar_datos():
-    return pd.read_excel("PRUEBA.xlsx")
+    df = pd.read_excel("PRUEBA.xlsx")
+    # Renombrar columnas para que coincidan con el código
+    df = df.rename(columns={
+        "CÓDIGO": "Código",
+        "NOMBRE": "Nombre",
+        "PRECIO": "Precio"
+    })
+    return df
 
 def obtener_ruta_imagen(codigo):
     extensiones = [".jpg", ".jpeg", ".png"]
