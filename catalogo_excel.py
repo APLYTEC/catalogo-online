@@ -48,20 +48,20 @@ total_paginas = (total_productos - 1) // productos_por_pagina + 1
 if "pagina_actual" not in st.session_state:
     st.session_state.pagina_actual = 1
 
-def mostrar_controles_paginacion():
+def mostrar_controles_paginacion(key_prefix=""):
     col1, col2, col3 = st.columns([1, 2, 1])
     with col1:
-        if st.button("⬅️ Anterior"):
+        if st.button("⬅️ Anterior", key=f"{key_prefix}_anterior"):
             if st.session_state.pagina_actual > 1:
                 st.session_state.pagina_actual -= 1
     with col3:
-        if st.button("Siguiente ➡️"):
+        if st.button("Siguiente ➡️", key=f"{key_prefix}_siguiente"):
             if st.session_state.pagina_actual < total_paginas:
                 st.session_state.pagina_actual += 1
     st.markdown(f"<div style='text-align: center'><strong>Página {st.session_state.pagina_actual} de {total_paginas}</strong></div>", unsafe_allow_html=True)
 
 # Controles de navegación - parte superior
-mostrar_controles_paginacion()
+mostrar_controles_paginacion(key_prefix="top")
 
 # Productos de la página actual
 inicio = (st.session_state.pagina_actual - 1) * productos_por_pagina
@@ -80,4 +80,4 @@ for _, fila in pagina_df.iterrows():
     st.markdown("---")
 
 # Controles de navegación - parte inferior
-mostrar_controles_paginacion()
+mostrar_controles_paginacion(key_prefix="bottom")
