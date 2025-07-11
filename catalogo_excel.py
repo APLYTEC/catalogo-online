@@ -20,16 +20,16 @@ df = cargar_datos()
 # Búsqueda por nombre o código
 busqueda = st.text_input("Buscar producto")
 if busqueda:
-    df_filtrado = df[df["nombre"].str.contains(busqueda, case=False) | df["codigo"].astype(str).str.contains(busqueda)]
+    df_filtrado = df[df["Nombre"].str.contains(busqueda, case=False, na=False) | df["Código"].astype(str).str.contains(busqueda)]
 else:
     df_filtrado = df
 
 # Mostrar los productos
 for _, fila in df_filtrado.iterrows():
-    st.markdown(f"### {fila['nombre']}")
-    st.markdown(f"**Código:** {fila['codigo']} &nbsp;&nbsp;&nbsp; **Precio:** {fila['precio']} €")
+    st.markdown(f"### {fila['Nombre']}")
+    st.markdown(f"**Código:** {fila['Código']} &nbsp;&nbsp;&nbsp; **Precio:** {fila['Precio']} €")
 
-    ruta_imagen = obtener_ruta_imagen(fila["codigo"])
+    ruta_imagen = obtener_ruta_imagen(fila["Código"])
     if ruta_imagen:
         st.image(ruta_imagen, use_container_width=True)
     else:
