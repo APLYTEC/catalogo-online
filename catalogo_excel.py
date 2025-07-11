@@ -21,6 +21,16 @@ def obtener_ruta_imagen(codigo):
             return str(ruta)
     return None
 
+# CABECERA
+st.markdown("""
+<div style='text-align: center'>
+    <img src='images.png' width='150'/>
+    <h1>APLYTEC</h1>
+    <h3>Tarifas de productos</h3>
+</div>
+<hr>
+""", unsafe_allow_html=True)
+
 df = cargar_datos()
 
 # Búsqueda
@@ -40,7 +50,7 @@ inicio = (pagina_actual - 1) * productos_por_pagina
 fin = inicio + productos_por_pagina
 pagina_df = df_filtrado.iloc[inicio:fin]
 
-# Mostrar productos de la página
+# Mostrar productos
 for _, fila in pagina_df.iterrows():
     st.markdown(f"### {fila['Nombre']}")
     precio = float(fila['Precio'])
