@@ -40,7 +40,7 @@ if busqueda:
 else:
     df_filtrado = df
 
-# Paginación con botones
+# Paginación
 productos_por_pagina = 20
 total_productos = len(df_filtrado)
 total_paginas = (total_productos - 1) // productos_por_pagina + 1
@@ -48,20 +48,25 @@ total_paginas = (total_productos - 1) // productos_por_pagina + 1
 if "pagina_actual" not in st.session_state:
     st.session_state.pagina_actual = 1
 
-col1, col2, col3 = st.columns([1, 2, 1])
-with col1:
-    if st.button("⬅️ Anterior") and st.session_state.pagina_actual > 1:
-        st.session_state.pagina_actual -= 1
-with col3:
-    if st.button("Siguiente ➡️") and st.session_state.pagina_actual < total_paginas:
-        st.session_state.pagina_actual += 1
+def mostrar_controles_paginacion():
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col1:
+        if st.button("⬅️ Anterior"):
+            if st.session_state.pagina_actual > 1:
+                st.session_state.pagina_actual -= 1
+    with col3:
+        if st.button("Siguiente ➡️"):
+            if st.session_state.pagina_actual < total_paginas:
+                st.session_state.pagina_actual += 1
+    st.markdown(f"<div style='text-align: center'><strong>Página {st.session_state.pagina_actual} de {total_paginas}</strong></div>", unsafe_allow_html=True)
 
-# Mostrar productos de la página actual
+# Controles de navegación - parte superior
+mostrar_controles_paginacion()
+
+# Productos de la página actual
 inicio = (st.session_state.pagina_actual - 1) * productos_por_pagina
 fin = inicio + productos_por_pagina
 pagina_df = df_filtrado.iloc[inicio:fin]
-
-st.markdown(f"**Página {st.session_state.pagina_actual} de {total_paginas}**")
 
 for _, fila in pagina_df.iterrows():
     st.markdown(f"### {fila['Nombre']}")
@@ -73,3 +78,6 @@ for _, fila in pagina_df.iterrows():
     else:
         st.warning("Imagen no disponible")
     st.markdown("---")
+
+# Controles de navegación - parte inferior
+mostrar_controles_paginacion()
