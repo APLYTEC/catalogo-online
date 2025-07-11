@@ -40,17 +40,29 @@ if busqueda:
 else:
     df_filtrado = df
 
-# Paginación
+# Paginación con botones
 productos_por_pagina = 20
 total_productos = len(df_filtrado)
 total_paginas = (total_productos - 1) // productos_por_pagina + 1
-pagina_actual = st.number_input("Página", min_value=1, max_value=total_paginas, value=1)
 
-inicio = (pagina_actual - 1) * productos_por_pagina
+if "pagina_actual" not in st.session_state:
+    st.session_state.pagina_actual = 1
+
+col1, col2, col3 = st.columns([1, 2, 1])
+with col1:
+    if st.button("⬅️ Anterior") and st.session_state.pagina_actual > 1:
+        st.session_state.pagina_actual -= 1
+with col3:
+    if st.button("Siguiente ➡️") and st.session_state.pagina_actual < total_paginas:
+        st.session_state.pagina_actual += 1
+
+# Mostrar productos de la página actual
+inicio = (st.session_state.pagina_actual - 1) * productos_por_pagina
 fin = inicio + productos_por_pagina
 pagina_df = df_filtrado.iloc[inicio:fin]
 
-# Mostrar productos
+st.markdown(f"**Página {st.session_state.pagina_actual} de {total_paginas}**")
+
 for _, fila in pagina_df.iterrows():
     st.markdown(f"### {fila['Nombre']}")
     precio = float(fila['Precio'])
