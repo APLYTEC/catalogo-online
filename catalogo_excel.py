@@ -21,10 +21,10 @@ def obtener_ruta_imagen(codigo):
             return str(ruta)
     return None
 
-# CABECERA
+# CABECERA CON LOGO DESDE GITHUB
 st.markdown("""
 <div style='text-align: center'>
-    <img src='images.png' width='150'/>
+    <img src='https://raw.githubusercontent.com/APLYTEC/catalogo-online/main/images.png' width='150'/>
     <h1>APLYTEC</h1>
     <h3>Tarifas de productos</h3>
 </div>
