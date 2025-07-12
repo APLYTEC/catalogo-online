@@ -100,13 +100,22 @@ for _, fila in pagina_df.iterrows():
 st.markdown("## 🛒 Resumen del pedido")
 if st.session_state.carrito:
     total = 0
+    resumen = ""
     for item in st.session_state.carrito:
         subtotal = item["Cantidad"] * item["PrecioUnitario"]
         total += subtotal
+        resumen += f"- {item['Cantidad']} {item['Tipo']} de {item['Nombre']} (Código: {item['Código']}) → {subtotal:.2f} €\n"
         st.markdown(f"- {item['Cantidad']} {item['Tipo']} de **{item['Nombre']}** → {subtotal:.2f} €")
     st.markdown(f"### Total: {total:.2f} €")
-    if st.button("🗑️ Vaciar pedido"):
-        st.session_state.carrito = []
-        st.warning("Pedido vaciado.")
+
+    st.markdown("## ✉️ Enviar pedido")
+    with st.form("form_pedido"):
+        nombre = st.text_input("Tu nombre")
+        comentarios = st.text_area("Comentarios adicionales (opcional)")
+        submitted = st.form_submit_button("📨 Enviar pedido")
+        if submitted:
+            resumen_pedido = f"Pedido enviado por: {nombre}\n\n{resumen}\nTotal: {total:.2f} €\n\nComentarios: {comentarios}"
+            st.text_area("📄 Vista previa del pedido a enviar por email", resumen_pedido, height=300)
+            st.success("Pedido preparado. En una versión futura se enviará automáticamente a lnavajas@aplytec.com")
 else:
     st.info("No hay productos en el pedido aún.")
