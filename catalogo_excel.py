@@ -7,12 +7,10 @@ from email.message import EmailMessage
 from fpdf import FPDF
 from pathlib import Path
 
-# ----- CONFIGURACIÓN SMTP -----
 EMAIL_REMITENTE = "jguzmanraya@gmail.com"
 EMAIL_DESTINO = "jguzmanraya@gmail.com"
 CONTRASENA_APP = "utjb tfrt oqis bzcg"
 
-# ----- FUNCIONES PDF -----
 class PedidoPDF(FPDF):
     def header(self):
         self.image("images.png", 10, 8, 33)
@@ -69,7 +67,7 @@ def obtener_ruta_imagen(codigo):
             return str(ruta)
     return None
 
-# ----- INTERFAZ -----
+# INTERFAZ
 st.markdown("""
 <div style='text-align: center'>
     <img src='https://raw.githubusercontent.com/APLYTEC/catalogo-online/main/images.png' width='150'/>
@@ -135,8 +133,11 @@ for _, fila in pagina_df.iterrows():
             st.success(f"{cantidad} {tipo} de '{fila['Nombre']}' añadido al pedido.")
     st.markdown("---")
 
-# ----- RESUMEN DEL PEDIDO -----
+# RESUMEN DEL PEDIDO
 st.markdown("## 🛒 Resumen del pedido")
+pdf_generado = False
+ruta_pdf = "resumen_pedido.pdf"
+
 if st.session_state.carrito:
     total = 0
     resumen = ""
@@ -155,13 +156,15 @@ if st.session_state.carrito:
         enviado = st.form_submit_button("📨 Enviar pedido")
         if enviado:
             resumen_txt = f"Pedido enviado por: {nombre}\n\n{resumen}\nTotal: {total:.2f} euros\n\nComentarios: {comentarios}"
-            ruta_pdf = "resumen_pedido.pdf"
             generar_pdf(nombre, resumen, total, comentarios, ruta_pdf)
             enviar_pedido_por_email("Nuevo pedido de catálogo", resumen_txt, ruta_pdf)
-            with open(ruta_pdf, "rb") as f:
-                st.download_button("📄 Descargar resumen en PDF", f, file_name="resumen_pedido.pdf")
             st.success("✅ Pedido enviado correctamente.")
+            pdf_generado = True
             st.session_state.carrito = []
+
+    if pdf_generado:
+        with open(ruta_pdf, "rb") as f:
+            st.download_button("📄 Descargar resumen en PDF", f, file_name="resumen_pedido.pdf")
 
     if st.button("🗑️ Borrar pedido"):
         st.session_state.carrito = []
