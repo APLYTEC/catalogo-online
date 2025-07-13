@@ -1,7 +1,42 @@
 
 import streamlit as st
 import pandas as pd
+import requests
 from pathlib import Path
+from fpdf import FPDF
+
+# Clase para generar el PDF
+class PedidoPDF(FPDF):
+    def header(self):
+        self.image("images.png", 10, 8, 33)
+        self.set_font("Arial", "B", 15)
+        self.cell(0, 10, "APLYTEC - Resumen de Pedido", ln=True, align="C")
+        self.ln(10)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font("Arial", "I", 8)
+        self.cell(0, 10, "Pagina " + str(self.page_no()), 0, 0, "C")
+
+def generar_pdf(nombre, resumen, total, comentarios, output_path):
+    pdf = PedidoPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "", 12)
+    pdf.cell(0, 10, f"Comercial: {nombre}", ln=True)
+    pdf.ln(5)
+
+    pdf.multi_cell(0, 10, resumen)
+    pdf.ln(5)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 10, f"Total del pedido: {total:.2f} euros", ln=True)
+
+    if comentarios:
+        pdf.ln(10)
+        pdf.set_font("Arial", "I", 11)
+        pdf.multi_cell(0, 10, f"Comentarios: {comentarios}")
+
+    pdf.output(output_path)
+    return output_path
 
 @st.cache_data
 def cargar_datos():
@@ -104,9 +139,9 @@ if st.session_state.carrito:
     for item in st.session_state.carrito:
         subtotal = item["Cantidad"] * item["PrecioUnitario"]
         total += subtotal
-        resumen += f"- {item['Cantidad']} {item['Tipo']} de {item['Nombre']} (Código: {item['Código']}) → {subtotal:.2f} €\n"
-        st.markdown(f"- {item['Cantidad']} {item['Tipo']} de **{item['Nombre']}** → {subtotal:.2f} €")
-    st.markdown(f"### Total: {total:.2f} €")
+        resumen += f"- {item['Cantidad']} {item['Tipo']} de {item['Nombre']} (Codigo: {item['Código']}) -> {subtotal:.2f} euros\n"
+        st.markdown(f"- {item['Cantidad']} {item['Tipo']} de **{item['Nombre']}** -> {subtotal:.2f} euros")
+    st.markdown(f"### Total: {total:.2f} euros")
 
     st.markdown("## ✉️ Enviar pedido")
     with st.form("form_pedido"):
@@ -114,8 +149,23 @@ if st.session_state.carrito:
         comentarios = st.text_area("Comentarios adicionales (opcional)")
         submitted = st.form_submit_button("📨 Enviar pedido")
         if submitted:
-            resumen_pedido = f"Pedido enviado por: {nombre}\n\n{resumen}\nTotal: {total:.2f} €\n\nComentarios: {comentarios}"
-            st.text_area("📄 Vista previa del pedido a enviar por email", resumen_pedido, height=300)
-            st.success("Pedido preparado. En una versión futura se enviará automáticamente a lnavajas@aplytec.com")
+            resumen_pedido = f"Pedido enviado por: {nombre}\n\n{resumen}\nTotal: {total:.2f} euros\n\nComentarios: {comentarios}"
+            data = {
+                "name": nombre,
+                "message": resumen_pedido
+            }
+            try:
+                response = requests.post("https://formspree.io/f/movlawwg", data=data)
+                if response.status_code == 200:
+                    st.success("✅ Pedido enviado correctamente a jguzmanraya@gmail.com")
+                    pdf_path = "resumen_pedido.pdf"
+                    generar_pdf(nombre, resumen, total, comentarios, pdf_path)
+                    with open(pdf_path, "rb") as f:
+                        st.download_button("📄 Descargar resumen en PDF", f, file_name="resumen_pedido.pdf")
+                    st.session_state.carrito = []
+                else:
+                    st.error("❌ Error al enviar el pedido. Inténtalo más tarde.")
+            except Exception as e:
+                st.error(f"❌ Error: {e}")
 else:
     st.info("No hay productos en el pedido aún.")
