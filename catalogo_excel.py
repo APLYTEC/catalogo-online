@@ -10,6 +10,7 @@ from pathlib import Path
 EMAIL_REMITENTE = "jguzmanraya@gmail.com"
 EMAIL_DESTINO = "jguzmanraya@gmail.com"
 CONTRASENA_APP = "utjb tfrt oqis bzcg"
+IVA = 0.21
 
 class PedidoPDF(FPDF):
     def header(self):
@@ -32,7 +33,7 @@ def generar_pdf(nombre, resumen, total, comentarios, output_path):
     pdf.multi_cell(0, 10, resumen)
     pdf.ln(5)
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, f"Total del pedido: {total:.2f} euros", ln=True)
+    pdf.cell(0, 10, f"Total del pedido: {total:.2f} euros (IVA incluido)", ln=True)
     if comentarios:
         pdf.ln(10)
         pdf.set_font("Arial", "I", 11)
@@ -67,7 +68,6 @@ def obtener_ruta_imagen(codigo):
             return str(ruta)
     return None
 
-# INTERFAZ
 st.markdown("""
 <div style='text-align: center'>
     <img src='https://raw.githubusercontent.com/APLYTEC/catalogo-online/main/images.png' width='150'/>
@@ -111,8 +111,9 @@ st.markdown(f"<div style='text-align: center'><strong>Página {st.session_state.
 
 for _, fila in pagina_df.iterrows():
     st.markdown(f"### {fila['Nombre']}")
-    precio = float(fila['Precio'])
-    st.markdown(f"**Código:** {fila['Código']} &nbsp;&nbsp;&nbsp; **Precio:** {precio:.2f} €")
+    precio_con_iva = float(fila['Precio'])
+    precio_sin_iva = precio_con_iva / (1 + IVA)
+    st.markdown(f"**Código:** {fila['Código']}<br>💶 Precio sin IVA: {precio_sin_iva:.2f} €<br>💰 Precio con IVA: {precio_con_iva:.2f} €", unsafe_allow_html=True)
     ruta_img = obtener_ruta_imagen(fila["Código"])
     if ruta_img:
         st.image(ruta_img, use_container_width=True)
@@ -128,12 +129,11 @@ for _, fila in pagina_df.iterrows():
                 "Nombre": fila["Nombre"],
                 "Cantidad": cantidad,
                 "Tipo": tipo,
-                "PrecioUnitario": precio
+                "PrecioUnitario": precio_con_iva
             })
             st.success(f"{cantidad} {tipo} de '{fila['Nombre']}' añadido al pedido.")
     st.markdown("---")
 
-# RESUMEN DEL PEDIDO
 st.markdown("## 🛒 Resumen del pedido")
 pdf_generado = False
 ruta_pdf = "resumen_pedido.pdf"
@@ -147,7 +147,7 @@ if st.session_state.carrito:
         resumen += f"- {item['Cantidad']} {item['Tipo']} de {item['Nombre']} (Codigo: {item['Código']}) -> {subtotal:.2f} euros\n"
         st.markdown(f"- {item['Cantidad']} {item['Tipo']} de **{item['Nombre']}** -> {subtotal:.2f} euros")
 
-    st.markdown(f"### Total: {total:.2f} euros")
+    st.markdown(f"### Total: {total:.2f} euros (IVA incluido)")
 
     st.markdown("## ✉️ Enviar pedido")
     with st.form("form_pedido"):
@@ -155,7 +155,7 @@ if st.session_state.carrito:
         comentarios = st.text_area("Comentarios adicionales (opcional)")
         enviado = st.form_submit_button("📨 Enviar pedido")
         if enviado:
-            resumen_txt = f"Pedido enviado por: {nombre}\n\n{resumen}\nTotal: {total:.2f} euros\n\nComentarios: {comentarios}"
+            resumen_txt = f"Pedido enviado por: {nombre}\n\n{resumen}\nTotal: {total:.2f} euros (IVA incluido)\n\nComentarios: {comentarios}"
             generar_pdf(nombre, resumen, total, comentarios, ruta_pdf)
             enviar_pedido_por_email("Nuevo pedido de catálogo", resumen_txt, ruta_pdf)
             st.success("✅ Pedido enviado correctamente.")
