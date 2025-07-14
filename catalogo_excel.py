@@ -62,7 +62,7 @@ def cargar_datos():
     return df
 
 def obtener_ruta_imagen(codigo):
-    for ext in [".jpg", ".jpeg", ".png"]:
+    for ext in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
         ruta = Path("imagenes") / f"{codigo}{ext}"
         if ruta.exists():
             return str(ruta)
