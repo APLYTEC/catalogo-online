@@ -2,13 +2,12 @@ import streamlit as st
 import pandas as pd
 import smtplib
 import ssl
+import base64
+from urllib.parse import quote
 from email.message import EmailMessage
 from fpdf import FPDF
 from pathlib import Path
 
-# =========================
-# CONFIGURACIÓN
-# =========================
 ARCHIVO_EXCEL = "PRUEBA_CLASIFICADO.xlsx"
 CARPETA_IMAGENES = Path("imagenes")
 
@@ -17,22 +16,20 @@ EMAIL_DESTINO = "jguzmanraya@gmail.com"
 CONTRASENA_APP = "utjb tfrt oqis bzcg"
 IVA = 0.21
 
-FAMILIAS = {
-    "Químicos": {"id": 1, "icono": "🧪"},
-    "Celulosas": {"id": 2, "icono": "🧻"},
-    "Útiles": {"id": 3, "icono": "🧹"},
-    "Desechables": {"id": 4, "icono": "🗑️"},
-    "Equipamiento": {"id": 5, "icono": "⚙️"},
-    "Máquinas": {"id": 6, "icono": "🚚"},
-    "Alquiler": {"id": 7, "icono": "📦"},
-    "Servicios": {"id": 9, "icono": "🛠️"},
-}
+FAMILIAS_ORDENADAS = [
+    ("Químicos", 1, "🧪"),
+    ("Celulosas", 2, "🧻"),
+    ("Útiles", 3, "🧹"),
+    ("Desechables", 4, "🗑️"),
+    ("Equipamiento", 5, "⚙️"),
+    ("Máquinas", 6, "🧽"),
+    ("Otros", 7, "📦"),
+    ("Servicios", 9, "🛠️"),
+]
 
+FAMILIAS = {nombre: {"id": fam_id, "icono": icono} for nombre, fam_id, icono in FAMILIAS_ORDENADAS}
 FORMATOS = ["unidades", "cajas", "paquetes"]
 
-# =========================
-# PDF
-# =========================
 class PedidoPDF(FPDF):
     def header(self):
         if Path("images.png").exists():
@@ -83,9 +80,6 @@ def enviar_pedido_por_email(asunto, cuerpo, adjunto_path):
         server.login(EMAIL_REMITENTE, CONTRASENA_APP)
         server.send_message(msg)
 
-# =========================
-# DATOS
-# =========================
 @st.cache_data
 def cargar_datos():
     df = pd.read_excel(ARCHIVO_EXCEL)
@@ -110,12 +104,15 @@ def cargar_datos():
         if col not in df.columns:
             df[col] = ""
 
-    df["Familia"] = df["Familia"].fillna("Sin familia").astype(str).str.strip()
+    df["Familia"] = df["Familia"].fillna("").astype(str).str.strip()
     df["Subfamilia"] = df["Subfamilia"].fillna("").astype(str).str.strip()
     df.loc[df["Subfamilia"] == "", "Subfamilia"] = "Otros"
     df["Precio"] = pd.to_numeric(df["Precio"], errors="coerce").fillna(0.0)
     df["Código"] = df["Código"].astype(str).str.strip()
     df["Nombre"] = df["Nombre"].astype(str).str.strip()
+
+    familias_validas = set(FAMILIAS.keys())
+    df["Familia"] = df["Familia"].apply(lambda x: x if x in familias_validas else "Otros")
     return df
 
 def obtener_ruta_imagen_producto(codigo):
@@ -128,36 +125,18 @@ def obtener_ruta_imagen_producto(codigo):
 def obtener_ruta_imagen_familia(nombre_familia):
     info = FAMILIAS.get(nombre_familia, {})
     fam_id = info.get("id")
-    candidatos = []
-    if fam_id is not None:
-        candidatos += [
-            CARPETA_IMAGENES / f"familia_{fam_id}.png",
-            CARPETA_IMAGENES / f"familia_{fam_id}.jpg",
-            CARPETA_IMAGENES / f"familia_{fam_id}.jpeg",
-            CARPETA_IMAGENES / f"familia_{fam_id}.webp",
-        ]
-    slug = (
-        nombre_familia.lower()
-        .replace("á", "a")
-        .replace("é", "e")
-        .replace("í", "i")
-        .replace("ó", "o")
-        .replace("ú", "u")
-    )
-    candidatos += [
-        CARPETA_IMAGENES / f"{slug}.png",
-        CARPETA_IMAGENES / f"{slug}.jpg",
-        CARPETA_IMAGENES / f"{slug}.jpeg",
-        CARPETA_IMAGENES / f"{slug}.webp",
-    ]
-    for ruta in candidatos:
+    if fam_id is None:
+        return None
+    for ext in [".png", ".jpg", ".jpeg", ".webp"]:
+        ruta = CARPETA_IMAGENES / f"familia_{fam_id}{ext}"
         if ruta.exists():
-            return str(ruta)
+            return ruta
     return None
 
-# =========================
-# ESTADO
-# =========================
+def imagen_a_base64(ruta):
+    with open(ruta, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
+
 if "carrito" not in st.session_state:
     st.session_state.carrito = []
 if "next_cart_id" not in st.session_state:
@@ -169,10 +148,21 @@ if "subfamilia_actual" not in st.session_state:
 if "pdf_generado" not in st.session_state:
     st.session_state.pdf_generado = False
 
-# =========================
-# UI BASE
-# =========================
+qp = st.query_params
+if qp.get("familia"):
+    st.session_state.familia_actual = qp.get("familia")
+if qp.get("subfamilia"):
+    st.session_state.subfamilia_actual = qp.get("subfamilia")
+
 st.set_page_config(page_title="Catálogo APLYTEC", layout="wide")
+
+st.markdown("""
+<style>
+.block-container {padding-top: 1.2rem;}
+a.family-card {text-decoration:none !important; display:block;}
+.family-wrap img {border-radius: 20px; box-shadow: 0 4px 16px rgba(0,0,0,.08);}
+</style>
+""", unsafe_allow_html=True)
 
 st.markdown("""
 <div style='text-align: center'>
@@ -185,161 +175,216 @@ st.markdown("""
 
 df = cargar_datos()
 
-# =========================
-# NAVEGACIÓN
-# =========================
 def volver_a_familias():
     st.session_state.familia_actual = None
     st.session_state.subfamilia_actual = None
+    st.query_params.clear()
 
 def volver_a_subfamilias():
     st.session_state.subfamilia_actual = None
+    st.query_params.clear()
+    st.query_params["familia"] = st.session_state.familia_actual
 
-# Pantalla familias
-if st.session_state.familia_actual is None:
+st.markdown("## Buscar producto")
+busqueda_global = st.text_input("Busca por nombre o código sin entrar en familias")
+
+if busqueda_global:
+    resultados = df[
+        df["Nombre"].str.contains(busqueda_global, case=False, na=False) |
+        df["Código"].astype(str).str.contains(busqueda_global, case=False, na=False)
+    ].copy()
+
+    st.markdown(f"### Resultados: {len(resultados)}")
+    for _, fila in resultados.iterrows():
+        st.markdown("---")
+        c1, c2 = st.columns([1, 2])
+
+        with c1:
+            ruta_img = obtener_ruta_imagen_producto(fila["Código"])
+            if ruta_img:
+                st.image(ruta_img, use_container_width=True)
+            else:
+                st.info("Sin imagen")
+
+        with c2:
+            st.markdown(f"### {fila['Nombre']}")
+            precio_con_iva = float(fila["Precio"])
+            precio_sin_iva = precio_con_iva / (1 + IVA) if precio_con_iva else 0
+            st.markdown(
+                f"**Código:** {fila['Código']}  \n"
+                f"**Familia:** {fila['Familia']}  \n"
+                f"**Subfamilia:** {fila['Subfamilia']}  \n"
+                f"💶 **Precio sin IVA:** {precio_sin_iva:.2f} €  \n"
+                f"💰 **Precio con IVA:** {precio_con_iva:.2f} €"
+            )
+
+            a1, a2, a3 = st.columns([1, 1, 1.4])
+            with a1:
+                cantidad = st.number_input(
+                    f"Cantidad {fila['Código']}",
+                    min_value=1,
+                    max_value=1000,
+                    value=1,
+                    key=f"cantidad_busq_{fila['Código']}"
+                )
+            with a2:
+                tipo = st.selectbox("Formato", FORMATOS, key=f"tipo_busq_{fila['Código']}")
+            with a3:
+                if st.button("➕ Añadir al pedido", key=f"add_busq_{fila['Código']}", use_container_width=True):
+                    existente = None
+                    for item in st.session_state.carrito:
+                        if item["Código"] == fila["Código"] and item["Tipo"] == tipo:
+                            existente = item
+                            break
+                    if existente:
+                        existente["Cantidad"] += int(cantidad)
+                    else:
+                        st.session_state.carrito.append({
+                            "id": st.session_state.next_cart_id,
+                            "Código": fila["Código"],
+                            "Nombre": fila["Nombre"],
+                            "Cantidad": int(cantidad),
+                            "Tipo": tipo,
+                            "PrecioUnitario": precio_con_iva
+                        })
+                        st.session_state.next_cart_id += 1
+                    st.success("Artículo añadido al pedido")
+
+if st.session_state.familia_actual is None and not busqueda_global:
     st.markdown("## Selecciona una familia")
-    familias_disponibles = [f for f in df["Familia"].dropna().unique().tolist() if str(f).strip()]
-
     cols = st.columns(2)
-    for i, familia in enumerate(sorted(familias_disponibles)):
+    for i, (familia, fam_id, _icono) in enumerate(FAMILIAS_ORDENADAS):
         with cols[i % 2]:
             img = obtener_ruta_imagen_familia(familia)
             if img:
-                st.image(img, use_container_width=True)
-                label = familia
+                img64 = imagen_a_base64(img)
+                href = f"?familia={quote(familia)}"
+                st.markdown(
+                    f"""
+                    <div class="family-wrap">
+                        <a class="family-card" href="{href}">
+                            <img src="data:image/png;base64,{img64}" style="width:100%;" />
+                        </a>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
             else:
-                icono = FAMILIAS.get(familia, {}).get("icono", "📁")
-                label = f"{icono} {familia}"
-
-            if st.button(label, key=f"btn_fam_{familia}", use_container_width=True):
-                st.session_state.familia_actual = familia
-                st.rerun()
-
+                if st.button(familia, key=f"btn_fam_{fam_id}", use_container_width=True):
+                    st.session_state.familia_actual = familia
+                    st.rerun()
     st.stop()
 
 familia_actual = st.session_state.familia_actual
 
-top1, top2 = st.columns([1, 3])
-with top1:
-    if st.button("⬅️ Familias", use_container_width=True):
-        volver_a_familias()
-        st.rerun()
-with top2:
-    st.markdown(f"## {familia_actual}")
+if familia_actual:
+    top1, top2 = st.columns([1, 3])
+    with top1:
+        if st.button("⬅️ Familias", use_container_width=True):
+            volver_a_familias()
+            st.rerun()
+    with top2:
+        st.markdown(f"## {familia_actual}")
 
-# Pantalla subfamilias
-if st.session_state.subfamilia_actual is None:
-    subfamilias = (
-        df[df["Familia"] == familia_actual]["Subfamilia"]
-        .dropna()
-        .astype(str)
-        .str.strip()
-        .replace("", "Otros")
-        .unique()
-        .tolist()
-    )
-    subfamilias = sorted(subfamilias)
-
-    st.markdown("### Selecciona una subfamilia")
-    cols = st.columns(3)
-    for i, sub in enumerate(subfamilias):
-        with cols[i % 3]:
-            if st.button(sub, key=f"btn_sub_{sub}", use_container_width=True):
-                st.session_state.subfamilia_actual = sub
-                st.rerun()
-    st.stop()
+    if st.session_state.subfamilia_actual is None:
+        subfamilias = (
+            df[df["Familia"] == familia_actual]["Subfamilia"]
+            .dropna()
+            .astype(str)
+            .str.strip()
+            .replace("", "Otros")
+            .unique()
+            .tolist()
+        )
+        subfamilias = sorted(subfamilias)
+        st.markdown("### Selecciona una subfamilia")
+        cols = st.columns(3)
+        for i, sub in enumerate(subfamilias):
+            with cols[i % 3]:
+                if st.button(sub, key=f"btn_sub_{sub}", use_container_width=True):
+                    st.session_state.subfamilia_actual = sub
+                    st.query_params["familia"] = familia_actual
+                    st.query_params["subfamilia"] = sub
+                    st.rerun()
+        st.stop()
 
 subfamilia_actual = st.session_state.subfamilia_actual
 
-nav1, nav2, nav3 = st.columns([1, 1, 3])
-with nav1:
-    if st.button("⬅️ Subfamilias", use_container_width=True):
-        volver_a_subfamilias()
-        st.rerun()
-with nav2:
-    if st.button("🏠 Familias", use_container_width=True):
-        volver_a_familias()
-        st.rerun()
-with nav3:
-    st.markdown(f"### {familia_actual} / {subfamilia_actual}")
+if familia_actual and subfamilia_actual:
+    nav1, nav2, nav3 = st.columns([1, 1, 3])
+    with nav1:
+        if st.button("⬅️ Subfamilias", use_container_width=True):
+            volver_a_subfamilias()
+            st.rerun()
+    with nav2:
+        if st.button("🏠 Familias", use_container_width=True):
+            volver_a_familias()
+            st.rerun()
+    with nav3:
+        st.markdown(f"### {familia_actual} / {subfamilia_actual}")
 
-productos = df[
-    (df["Familia"] == familia_actual) &
-    (df["Subfamilia"] == subfamilia_actual)
-].copy()
+    productos = df[(df["Familia"] == familia_actual) & (df["Subfamilia"] == subfamilia_actual)].copy()
 
-busqueda = st.text_input("Buscar dentro de esta subfamilia")
-if busqueda:
-    productos = productos[
-        productos["Nombre"].str.contains(busqueda, case=False, na=False) |
-        productos["Código"].astype(str).str.contains(busqueda, case=False, na=False)
-    ]
+    busqueda = st.text_input("Buscar dentro de esta subfamilia")
+    if busqueda:
+        productos = productos[
+            productos["Nombre"].str.contains(busqueda, case=False, na=False) |
+            productos["Código"].astype(str).str.contains(busqueda, case=False, na=False)
+        ]
 
-# =========================
-# PRODUCTOS
-# =========================
-for _, fila in productos.iterrows():
-    st.markdown("---")
-    c1, c2 = st.columns([1, 2])
+    for _, fila in productos.iterrows():
+        st.markdown("---")
+        c1, c2 = st.columns([1, 2])
 
-    with c1:
-        ruta_img = obtener_ruta_imagen_producto(fila["Código"])
-        if ruta_img:
-            st.image(ruta_img, use_container_width=True)
-        else:
-            st.info("Sin imagen")
+        with c1:
+            ruta_img = obtener_ruta_imagen_producto(fila["Código"])
+            if ruta_img:
+                st.image(ruta_img, use_container_width=True)
+            else:
+                st.info("Sin imagen")
 
-    with c2:
-        st.markdown(f"### {fila['Nombre']}")
-        precio_con_iva = float(fila["Precio"])
-        precio_sin_iva = precio_con_iva / (1 + IVA) if precio_con_iva else 0
-        st.markdown(
-            f"**Código:** {fila['Código']}  \n"
-            f"💶 **Precio sin IVA:** {precio_sin_iva:.2f} €  \n"
-            f"💰 **Precio con IVA:** {precio_con_iva:.2f} €"
-        )
-
-        a1, a2, a3 = st.columns([1, 1, 1.4])
-        with a1:
-            cantidad = st.number_input(
-                f"Cantidad {fila['Código']}",
-                min_value=1,
-                max_value=1000,
-                value=1,
-                key=f"cantidad_{fila['Código']}"
+        with c2:
+            st.markdown(f"### {fila['Nombre']}")
+            precio_con_iva = float(fila["Precio"])
+            precio_sin_iva = precio_con_iva / (1 + IVA) if precio_con_iva else 0
+            st.markdown(
+                f"**Código:** {fila['Código']}  \n"
+                f"💶 **Precio sin IVA:** {precio_sin_iva:.2f} €  \n"
+                f"💰 **Precio con IVA:** {precio_con_iva:.2f} €"
             )
-        with a2:
-            tipo = st.selectbox(
-                "Formato",
-                FORMATOS,
-                key=f"tipo_{fila['Código']}"
-            )
-        with a3:
-            if st.button("➕ Añadir al pedido", key=f"add_{fila['Código']}", use_container_width=True):
-                existente = None
-                for item in st.session_state.carrito:
-                    if item["Código"] == fila["Código"] and item["Tipo"] == tipo:
-                        existente = item
-                        break
 
-                if existente:
-                    existente["Cantidad"] += int(cantidad)
-                else:
-                    st.session_state.carrito.append({
-                        "id": st.session_state.next_cart_id,
-                        "Código": fila["Código"],
-                        "Nombre": fila["Nombre"],
-                        "Cantidad": int(cantidad),
-                        "Tipo": tipo,
-                        "PrecioUnitario": precio_con_iva
-                    })
-                    st.session_state.next_cart_id += 1
+            a1, a2, a3 = st.columns([1, 1, 1.4])
+            with a1:
+                cantidad = st.number_input(
+                    f"Cantidad {fila['Código']}",
+                    min_value=1,
+                    max_value=1000,
+                    value=1,
+                    key=f"cantidad_{fila['Código']}"
+                )
+            with a2:
+                tipo = st.selectbox("Formato", FORMATOS, key=f"tipo_{fila['Código']}")
+            with a3:
+                if st.button("➕ Añadir al pedido", key=f"add_{fila['Código']}", use_container_width=True):
+                    existente = None
+                    for item in st.session_state.carrito:
+                        if item["Código"] == fila["Código"] and item["Tipo"] == tipo:
+                            existente = item
+                            break
+                    if existente:
+                        existente["Cantidad"] += int(cantidad)
+                    else:
+                        st.session_state.carrito.append({
+                            "id": st.session_state.next_cart_id,
+                            "Código": fila["Código"],
+                            "Nombre": fila["Nombre"],
+                            "Cantidad": int(cantidad),
+                            "Tipo": tipo,
+                            "PrecioUnitario": precio_con_iva
+                        })
+                        st.session_state.next_cart_id += 1
+                    st.success("Artículo añadido al pedido")
 
-                st.success("Artículo añadido al pedido")
-
-# =========================
-# CARRITO
-# =========================
 st.markdown("---")
 st.markdown("## 🛒 Resumen del pedido")
 ruta_pdf = "resumen_pedido.pdf"
@@ -383,10 +428,7 @@ if st.session_state.carrito:
             item["Tipo"] = nuevo_tipo
             nuevo_carrito.append(item)
             total += subtotal
-            resumen += (
-                f"- {item['Cantidad']} {item['Tipo']} de {item['Nombre']} "
-                f"(Codigo: {item['Código']}) -> {subtotal:.2f} euros\n"
-            )
+            resumen += f"- {item['Cantidad']} {item['Tipo']} de {item['Nombre']} (Codigo: {item['Código']}) -> {subtotal:.2f} euros\n"
         else:
             borrado = True
 
@@ -403,12 +445,7 @@ if st.session_state.carrito:
         enviar = st.form_submit_button("📨 Enviar pedido")
 
         if enviar:
-            resumen_txt = (
-                f"Pedido enviado por: {nombre}\n\n"
-                f"{resumen}\n"
-                f"Total: {total:.2f} euros (IVA incluido)\n\n"
-                f"Comentarios: {comentarios}"
-            )
+            resumen_txt = f"Pedido enviado por: {nombre}\n\n{resumen}\nTotal: {total:.2f} euros (IVA incluido)\n\nComentarios: {comentarios}"
             generar_pdf(nombre, resumen, total, comentarios, ruta_pdf)
             enviar_pedido_por_email("Nuevo pedido de catálogo", resumen_txt, ruta_pdf)
             st.success("✅ Pedido enviado correctamente")
@@ -419,12 +456,7 @@ if st.session_state.carrito:
     with b1:
         if st.session_state.pdf_generado and Path(ruta_pdf).exists():
             with open(ruta_pdf, "rb") as f:
-                st.download_button(
-                    "📄 Descargar resumen en PDF",
-                    f,
-                    file_name="resumen_pedido.pdf",
-                    use_container_width=True
-                )
+                st.download_button("📄 Descargar resumen en PDF", f, file_name="resumen_pedido.pdf", use_container_width=True)
     with b2:
         if st.button("🗑️ Vaciar carrito", use_container_width=True):
             st.session_state.carrito = []
