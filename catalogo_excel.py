@@ -238,10 +238,74 @@ def render_menu_superior():
         <style>
         .block-container {padding-top: 1.1rem;}
         a.family-card {text-decoration:none !important; display:block;}
-        .family-wrap img {border-radius: 20px; box-shadow: 0 4px 16px rgba(0,0,0,.08);}
-        .hero-card {background: linear-gradient(135deg, #ffffff 0%, #f6faf5 100%); border:1px solid #d9ead3; border-radius:24px; padding: 2rem 1.5rem; text-align:center; box-shadow: 0 8px 24px rgba(0,0,0,.06);}
-        .contact-card {background:#f8fbf8; border:1px solid #d9ead3; border-radius:20px; padding:1.2rem;}
+        .family-wrap img {border-radius: 22px; box-shadow: 0 8px 24px rgba(0,0,0,.10);}
+        .hero-card {
+            background:
+                radial-gradient(circle at top right, rgba(111, 168, 72, 0.22), transparent 32%),
+                linear-gradient(135deg, #ffffff 0%, #f6faf5 55%, #eef7eb 100%);
+            border: 1px solid #d9ead3;
+            border-radius: 28px;
+            padding: 2.4rem 1.8rem 2rem 1.8rem;
+            text-align: center;
+            box-shadow: 0 14px 34px rgba(0,0,0,.08);
+        }
+        .hero-badge {
+            display:inline-block;
+            background:#eaf5e5;
+            color:#355e2b;
+            font-weight:700;
+            border-radius:999px;
+            padding:.38rem .9rem;
+            margin-bottom:.9rem;
+            font-size:.92rem;
+            border:1px solid #d9ead3;
+        }
+        .hero-title {
+            font-size: clamp(2rem, 4vw, 3rem);
+            line-height:1.08;
+            margin:.1rem 0 .6rem 0;
+            color:#1f2a1f;
+        }
+        .hero-subtitle {
+            font-size:1.1rem;
+            line-height:1.55;
+            max-width:720px;
+            margin:0 auto;
+            color:#3e5140;
+        }
+        .hero-mini-grid {
+            display:grid;
+            grid-template-columns: repeat(3, minmax(0,1fr));
+            gap:.8rem;
+            margin-top:1.4rem;
+        }
+        .hero-mini-card {
+            background: rgba(255,255,255,.78);
+            border:1px solid #dfeedd;
+            border-radius:18px;
+            padding:.9rem;
+            font-weight:600;
+            color:#355e2b;
+        }
+        .contact-card {
+            background: linear-gradient(135deg, #f8fbf8 0%, #eef7eb 100%);
+            border:1px solid #d9ead3;
+            border-radius:22px;
+            padding:1.25rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,.05);
+        }
+        .cta-band {
+            background:#355e2b;
+            color:white;
+            border-radius:22px;
+            padding:1.2rem 1.2rem;
+            box-shadow: 0 12px 26px rgba(53,94,43,.22);
+        }
+        .cta-band p, .cta-band h3 {color:white; margin:0;}
         .topbar-btn button {height: 48px; font-weight: 700;}
+        @media (max-width: 900px) {
+            .hero-mini-grid {grid-template-columns: 1fr;}
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -271,9 +335,15 @@ def render_inicio():
     st.markdown(
         f"""
         <div class='hero-card'>
-            <img src='{logo_src}' style='width: min(420px, 80%); margin-bottom: 1rem;' />
-            <h1 style='margin-bottom:0.5rem;'>Haz tu pedido online</h1>
-            <p style='font-size:1.15rem; margin-bottom:0;'>Accede al catálogo de Aplytec de forma rápida y sencilla</p>
+            <div class='hero-badge'>Catálogo online · Pedido rápido</div>
+            <img src='{logo_src}' style='width: min(430px, 82%); margin-bottom: 1rem;' />
+            <h1 class='hero-title'>Haz tu pedido online</h1>
+            <p class='hero-subtitle'>Accede al catálogo de Aplytec de forma rápida y sencilla. Encuentra lo que necesitas, añádelo al carrito y envía tu pedido desde el móvil en pocos pasos.</p>
+            <div class='hero-mini-grid'>
+                <div class='hero-mini-card'>📦 Productos organizados por familias</div>
+                <div class='hero-mini-card'>🛒 Compra rápida y clara</div>
+                <div class='hero-mini-card'>💬 Atención directa por WhatsApp</div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -294,21 +364,38 @@ def render_inicio():
             ir_a_contacto()
             st.rerun()
 
-    st.markdown("<div style='height: 0.6rem;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
+    cta1, cta2 = st.columns([1.8, 1.2])
+    with cta1:
+        st.markdown(
+            """
+            <div class='cta-band'>
+                <h3>Escanea, entra y pide</h3>
+                <p style='margin-top:.35rem;'>Ideal para panfletos y clientes: acceso directo al catálogo, navegación fácil y contacto inmediato.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with cta2:
+        st.link_button("💬 Pedir por WhatsApp", WHATSAPP_LINK, use_container_width=True)
+
+    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
     w1, w2 = st.columns([2, 1])
     with w1:
         st.markdown(
             """
             <div class='contact-card'>
                 <h3 style='margin-top:0;'>Pedido rápido desde tu móvil</h3>
-                <p style='margin-bottom:0.2rem;'>Explora las familias, añade productos al carrito y envía tu pedido en pocos pasos.</p>
+                <p style='margin-bottom:0.45rem;'>Explora las familias, añade productos al carrito y envía tu pedido de forma cómoda, clara y sin llamadas innecesarias.</p>
                 <p style='margin-bottom:0;'><strong>WhatsApp:</strong> +34 647 93 63 56</p>
             </div>
             """,
             unsafe_allow_html=True,
         )
     with w2:
-        st.link_button("💬 Abrir WhatsApp", WHATSAPP_LINK, use_container_width=True)
+        if st.button("📦 Entrar al catálogo", use_container_width=True, key="inicio_catalogo_extra"):
+            ir_a_catalogo()
+            st.rerun()
 
 
 def render_contacto():
