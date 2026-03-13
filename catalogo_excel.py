@@ -137,6 +137,43 @@ def imagen_a_base64(ruta):
     with open(ruta, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
+
+def agregar_o_sumar_al_carrito(codigo, nombre, tipo, precio_con_iva, cantidad=1):
+    existente = None
+    for item in st.session_state.carrito:
+        if item["Código"] == codigo and item["Tipo"] == tipo:
+            existente = item
+            break
+    if existente:
+        existente["Cantidad"] += int(cantidad)
+    else:
+        st.session_state.carrito.append({
+            "id": st.session_state.next_cart_id,
+            "Código": codigo,
+            "Nombre": nombre,
+            "Cantidad": int(cantidad),
+            "Tipo": tipo,
+            "PrecioUnitario": float(precio_con_iva)
+        })
+        st.session_state.next_cart_id += 1
+
+
+def cantidad_en_carrito(codigo, tipo):
+    total = 0
+    for item in st.session_state.carrito:
+        if item["Código"] == codigo and item["Tipo"] == tipo:
+            total += int(item["Cantidad"])
+    return total
+
+
+def quitar_del_carrito(codigo, tipo, cantidad=1):
+    for i, item in enumerate(st.session_state.carrito):
+        if item["Código"] == codigo and item["Tipo"] == tipo:
+            item["Cantidad"] -= int(cantidad)
+            if item["Cantidad"] <= 0:
+                st.session_state.carrito.pop(i)
+            return
+
 if "carrito" not in st.session_state:
     st.session_state.carrito = []
 if "next_cart_id" not in st.session_state:
@@ -218,37 +255,36 @@ if busqueda_global:
                 f"💰 **Precio con IVA:** {precio_con_iva:.2f} €"
             )
 
-            a1, a2, a3 = st.columns([1, 1, 1.4])
+            tipo = st.radio(
+                "Formato",
+                FORMATOS,
+                horizontal=True,
+                key=f"tipo_busq_{fila['Código']}",
+                label_visibility="collapsed"
+            )
+
+            qty_actual = cantidad_en_carrito(fila["Código"], tipo)
+            a1, a2, a3, a4 = st.columns([1, 1, 1.2, 2.2])
             with a1:
-                cantidad = st.number_input(
-                    f"Cantidad {fila['Código']}",
-                    min_value=1,
-                    max_value=1000,
-                    value=1,
-                    key=f"cantidad_busq_{fila['Código']}"
-                )
+                if st.button("−", key=f"menos_busq_{fila['Código']}_{tipo}", use_container_width=True):
+                    quitar_del_carrito(fila["Código"], tipo, 1)
+                    st.rerun()
             with a2:
-                tipo = st.selectbox("Formato", FORMATOS, key=f"tipo_busq_{fila['Código']}")
+                if st.button("+", key=f"mas_busq_{fila['Código']}_{tipo}", use_container_width=True):
+                    agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
+                    st.rerun()
             with a3:
-                if st.button("➕ Añadir al pedido", key=f"add_busq_{fila['Código']}", use_container_width=True):
-                    existente = None
-                    for item in st.session_state.carrito:
-                        if item["Código"] == fila["Código"] and item["Tipo"] == tipo:
-                            existente = item
-                            break
-                    if existente:
-                        existente["Cantidad"] += int(cantidad)
-                    else:
-                        st.session_state.carrito.append({
-                            "id": st.session_state.next_cart_id,
-                            "Código": fila["Código"],
-                            "Nombre": fila["Nombre"],
-                            "Cantidad": int(cantidad),
-                            "Tipo": tipo,
-                            "PrecioUnitario": precio_con_iva
-                        })
-                        st.session_state.next_cart_id += 1
-                    st.success("Artículo añadido al pedido")
+                st.markdown(f"**En carrito:** {qty_actual}")
+            with a4:
+                b1, b2 = st.columns(2)
+                with b1:
+                    if st.button("Añadir 1", key=f"add1_busq_{fila['Código']}_{tipo}", use_container_width=True):
+                        agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
+                        st.rerun()
+                with b2:
+                    if st.button("Añadir 5", key=f"add5_busq_{fila['Código']}_{tipo}", use_container_width=True):
+                        agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
+                        st.rerun()
 
 if st.session_state.familia_actual is None and not busqueda_global:
     st.markdown("## Selecciona una familia")
@@ -353,37 +389,36 @@ if familia_actual and subfamilia_actual:
                 f"💰 **Precio con IVA:** {precio_con_iva:.2f} €"
             )
 
-            a1, a2, a3 = st.columns([1, 1, 1.4])
+            tipo = st.radio(
+                "Formato",
+                FORMATOS,
+                horizontal=True,
+                key=f"tipo_{fila['Código']}",
+                label_visibility="collapsed"
+            )
+
+            qty_actual = cantidad_en_carrito(fila["Código"], tipo)
+            a1, a2, a3, a4 = st.columns([1, 1, 1.2, 2.2])
             with a1:
-                cantidad = st.number_input(
-                    f"Cantidad {fila['Código']}",
-                    min_value=1,
-                    max_value=1000,
-                    value=1,
-                    key=f"cantidad_{fila['Código']}"
-                )
+                if st.button("−", key=f"menos_{fila['Código']}_{tipo}", use_container_width=True):
+                    quitar_del_carrito(fila["Código"], tipo, 1)
+                    st.rerun()
             with a2:
-                tipo = st.selectbox("Formato", FORMATOS, key=f"tipo_{fila['Código']}")
+                if st.button("+", key=f"mas_{fila['Código']}_{tipo}", use_container_width=True):
+                    agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
+                    st.rerun()
             with a3:
-                if st.button("➕ Añadir al pedido", key=f"add_{fila['Código']}", use_container_width=True):
-                    existente = None
-                    for item in st.session_state.carrito:
-                        if item["Código"] == fila["Código"] and item["Tipo"] == tipo:
-                            existente = item
-                            break
-                    if existente:
-                        existente["Cantidad"] += int(cantidad)
-                    else:
-                        st.session_state.carrito.append({
-                            "id": st.session_state.next_cart_id,
-                            "Código": fila["Código"],
-                            "Nombre": fila["Nombre"],
-                            "Cantidad": int(cantidad),
-                            "Tipo": tipo,
-                            "PrecioUnitario": precio_con_iva
-                        })
-                        st.session_state.next_cart_id += 1
-                    st.success("Artículo añadido al pedido")
+                st.markdown(f"**En carrito:** {qty_actual}")
+            with a4:
+                b1, b2 = st.columns(2)
+                with b1:
+                    if st.button("Añadir 1", key=f"add1_{fila['Código']}_{tipo}", use_container_width=True):
+                        agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
+                        st.rerun()
+                with b2:
+                    if st.button("Añadir 5", key=f"add5_{fila['Código']}_{tipo}", use_container_width=True):
+                        agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
+                        st.rerun()
 
 st.markdown("---")
 st.markdown("## 🛒 Resumen del pedido")
