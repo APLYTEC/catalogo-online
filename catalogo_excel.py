@@ -249,15 +249,15 @@ def render_menu_superior():
 
     b1, b2, b3, b4 = st.columns([1.1, 1.1, 1.1, 1.2])
     with b1:
-        if st.button("🏠 Inicio", use_container_width=True):
+        if st.button("🏠 Inicio", use_container_width=True, key="top_inicio"):
             ir_a_inicio()
             st.rerun()
     with b2:
-        if st.button("📦 Ver productos", use_container_width=True):
+        if st.button("📦 Ver productos", use_container_width=True, key="top_productos"):
             ir_a_catalogo()
             st.rerun()
     with b3:
-        if st.button(f"🛒 Mi carrito ({total})", use_container_width=True):
+        if st.button(f"🛒 Mi carrito ({total})", use_container_width=True, key="top_carrito"):
             ir_a_carrito()
             st.rerun()
     with b4:
@@ -282,15 +282,15 @@ def render_inicio():
     st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
     with c1:
-        if st.button("📦 Ver productos", use_container_width=True):
+        if st.button("📦 Ver productos", use_container_width=True, key="inicio_productos"):
             ir_a_catalogo()
             st.rerun()
     with c2:
-        if st.button(f"🛒 Mi carrito ({total_items_carrito()})", use_container_width=True):
+        if st.button(f"🛒 Mi carrito ({total_items_carrito()})", use_container_width=True, key="inicio_carrito"):
             ir_a_carrito()
             st.rerun()
     with c3:
-        if st.button("📞 Contacto", use_container_width=True):
+        if st.button("📞 Contacto", use_container_width=True, key="inicio_contacto"):
             ir_a_contacto()
             st.rerun()
 
