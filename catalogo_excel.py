@@ -20,6 +20,10 @@ WHATSAPP_NUMERO = "+34647936356"
 WHATSAPP_LINK = "https://wa.me/34647936356"
 LOGO_LOCAL = Path("aplytec_logo_upscaled_16x.png")
 LOGO_FALLBACK = "https://raw.githubusercontent.com/APLYTEC/catalogo-online/main/images.png"
+APLY_SALUDA = CARPETA_IMAGENES / "aply_saludando.png"
+APLY_SENALA = CARPETA_IMAGENES / "aply_senalando.png"
+APLY_CARRITO = CARPETA_IMAGENES / "aply_carrito.png"
+APLY_MOVIL = CARPETA_IMAGENES / "aply_movil.png"
 
 FAMILIAS_ORDENADAS = [
     ("Químicos", 1, "🧪"),
@@ -200,6 +204,23 @@ def obtener_logo_src():
     return LOGO_FALLBACK
 
 
+def render_aply(ruta, mensaje, altura=240):
+    if not ruta.exists():
+        st.info(mensaje)
+        return
+
+    img64 = imagen_a_base64(ruta)
+    st.markdown(
+        f"""
+        <div style="background:linear-gradient(135deg,#f8fbf8 0%,#eef7eb 100%);border:1px solid #d9ead3;border-radius:22px;padding:1rem;text-align:center;box-shadow:0 8px 20px rgba(0,0,0,.05);">
+            <img src="data:image/png;base64,{img64}" style="max-height:{altura}px;width:auto;max-width:100%;object-fit:contain;">
+            <div style="margin-top:.65rem;font-weight:700;color:#355e2b;font-size:1rem;line-height:1.35;">💬 {mensaje}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def ir_a_inicio():
     st.session_state.pantalla_actual = "inicio"
     st.session_state.familia_actual = None
@@ -333,89 +354,106 @@ def render_menu_superior():
 
 def render_inicio():
     logo_src = obtener_logo_src()
-    st.markdown(
-        f"""
-        <div class='hero-card'>
-            <div class='hero-badge'>Catálogo online · Pedido rápido</div>
-            <img src='{logo_src}' style='width: min(430px, 82%); margin-bottom: 1rem;' />
-            <h1 class='hero-title'>Haz tu pedido online</h1>
-            <p class='hero-subtitle'>Accede al catálogo de Aplytec de forma rápida y sencilla. Encuentra lo que necesitas, añádelo al carrito y envía tu pedido desde el móvil en pocos pasos.</p>
-            <div class='hero-mini-grid'>
-                <div class='hero-mini-card'>📦 Productos organizados por familias</div>
-                <div class='hero-mini-card'>🛒 Compra rápida y clara</div>
-                <div class='hero-mini-card'>💬 Atención directa por WhatsApp</div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    left, right = st.columns([1.9, 1.1])
 
-    st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        if st.button("📦 Ver productos", use_container_width=True, key="inicio_productos"):
-            ir_a_catalogo()
-            st.rerun()
-    with c2:
-        if st.button(f"🛒 Mi carrito ({total_items_carrito()})", use_container_width=True, key="inicio_carrito"):
-            ir_a_carrito()
-            st.rerun()
-    with c3:
-        if st.button("📞 Contacto", use_container_width=True, key="inicio_contacto"):
-            ir_a_contacto()
-            st.rerun()
-
-    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
-    cta1, cta2 = st.columns([1.8, 1.2])
-    with cta1:
+    with left:
         st.markdown(
-            """
-            <div class='cta-band'>
-                <h3>Escanea, entra y pide</h3>
-                <p style='margin-top:.35rem;'>Ideal para panfletos y clientes: acceso directo al catálogo, navegación fácil y contacto inmediato.</p>
+            f"""
+            <div class='hero-card'>
+                <div class='hero-badge'>Catálogo online · Pedido rápido</div>
+                <img src='{logo_src}' style='width: min(430px, 82%); margin-bottom: 1rem;' />
+                <h1 class='hero-title'>Haz tu pedido online</h1>
+                <p class='hero-subtitle'>Accede al catálogo de Aplytec de forma rápida y sencilla. Encuentra lo que necesitas, añádelo al carrito y envía tu pedido desde el móvil en pocos pasos.</p>
+                <div class='hero-mini-grid'>
+                    <div class='hero-mini-card'>📦 Productos organizados por familias</div>
+                    <div class='hero-mini-card'>🛒 Compra rápida y clara</div>
+                    <div class='hero-mini-card'>💬 Atención directa por WhatsApp</div>
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
-    with cta2:
-        st.link_button("💬 Pedir por WhatsApp", WHATSAPP_LINK, use_container_width=True)
 
-    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
-    w1, w2 = st.columns([2, 1])
-    with w1:
-        st.markdown(
-            """
-            <div class='contact-card'>
-                <h3 style='margin-top:0;'>Pedido rápido desde tu móvil</h3>
-                <p style='margin-bottom:0.45rem;'>Explora las familias, añade productos al carrito y envía tu pedido de forma cómoda, clara y sin llamadas innecesarias.</p>
-                <p style='margin-bottom:0;'><strong>WhatsApp:</strong> +34 647 93 63 56</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with w2:
-        if st.button("📦 Entrar al catálogo", use_container_width=True, key="inicio_catalogo_extra"):
-            ir_a_catalogo()
-            st.rerun()
+        st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            if st.button("📦 Ver productos", use_container_width=True, key="inicio_productos"):
+                ir_a_catalogo()
+                st.rerun()
+        with c2:
+            if st.button(f"🛒 Mi carrito ({total_items_carrito()})", use_container_width=True, key="inicio_carrito"):
+                ir_a_carrito()
+                st.rerun()
+        with c3:
+            if st.button("📞 Contacto", use_container_width=True, key="inicio_contacto"):
+                ir_a_contacto()
+                st.rerun()
+
+        st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
+        cta1, cta2 = st.columns([1.8, 1.2])
+        with cta1:
+            st.markdown(
+                """
+                <div class='cta-band'>
+                    <h3>Escanea, entra y pide</h3>
+                    <p style='margin-top:.35rem;'>Ideal para panfletos y clientes: acceso directo al catálogo, navegación fácil y contacto inmediato.</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with cta2:
+            st.link_button("💬 Pedir por WhatsApp", WHATSAPP_LINK, use_container_width=True)
+
+        st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
+        w1, w2 = st.columns([2, 1])
+        with w1:
+            st.markdown(
+                """
+                <div class='contact-card'>
+                    <h3 style='margin-top:0;'>Pedido rápido desde tu móvil</h3>
+                    <p style='margin-bottom:0.45rem;'>Explora las familias, añade productos al carrito y envía tu pedido de forma cómoda, clara y sin llamadas innecesarias.</p>
+                    <p style='margin-bottom:0;'><strong>WhatsApp:</strong> +34 647 93 63 56</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with w2:
+            if st.button("📦 Entrar al catálogo", use_container_width=True, key="inicio_catalogo_extra"):
+                ir_a_catalogo()
+                st.rerun()
+
+    with right:
+        render_aply(APLY_SALUDA, "Hola, soy Aply. Entra al catálogo y prepara tu pedido en pocos pasos.", altura=320)
+
 
 
 def render_contacto():
     st.markdown("## Contacto")
-    st.markdown(
-        """
-        <div class='contact-card'>
-            <h3 style='margin-top:0;'>Aplytec</h3>
-            <p><strong>WhatsApp:</strong> +34 647 93 63 56</p>
-            <p>Escríbenos si prefieres ayuda directa para preparar tu pedido.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.link_button("💬 Hablar por WhatsApp", WHATSAPP_LINK, use_container_width=True)
+    c1, c2 = st.columns([1.7, 1])
+    with c1:
+        st.markdown(
+            """
+            <div class='contact-card'>
+                <h3 style='margin-top:0;'>Aplytec</h3>
+                <p><strong>WhatsApp:</strong> +34 647 93 63 56</p>
+                <p>Escríbenos si prefieres ayuda directa para preparar tu pedido.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.link_button("💬 Hablar por WhatsApp", WHATSAPP_LINK, use_container_width=True)
+    with c2:
+        render_aply(APLY_MOVIL, "¿Tienes dudas? Escríbenos por WhatsApp y te ayudamos con el pedido.", altura=280)
+
 
 
 def render_carrito():
     st.markdown("## 🛒 Mi carrito")
+    c1, c2 = st.columns([1.8, 1])
+    with c1:
+        st.markdown("Completa tu pedido y envíalo cuando esté todo correcto.")
+    with c2:
+        render_aply(APLY_CARRITO, "Revisa tu pedido y no olvides indicar tu nombre y tu teléfono.", altura=230)
     ruta_pdf = "resumen_pedido.pdf"
 
     if st.session_state.carrito:
@@ -549,7 +587,11 @@ def render_carrito():
 
 
 def render_catalogo(df):
-    st.markdown("## Buscar producto")
+    top_left, top_right = st.columns([2.2, 1])
+    with top_left:
+        st.markdown("## Buscar producto")
+    with top_right:
+        render_aply(APLY_SENALA, "Elige una familia o usa el buscador para encontrar tu producto.", altura=220)
     busqueda_global = st.text_input("Busca por nombre o código sin entrar en familias")
 
     if busqueda_global:
