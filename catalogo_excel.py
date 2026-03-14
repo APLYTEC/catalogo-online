@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import smtplib
 import ssl
@@ -467,23 +468,58 @@ def render_carrito():
 
         st.markdown(f"### Total: {total:.2f} euros (IVA incluido)")
 
+        st.markdown("<div id='datos-pedido'></div>", unsafe_allow_html=True)
         with st.form("form_pedido"):
-            nombre = st.text_input("Tu nombre")
-            telefono = st.text_input("Teléfono")
-            comentarios = st.text_area("Comentarios adicionales (opcional)")
+            nombre = st.text_input("Tu nombre", key="pedido_nombre")
+            telefono = st.text_input("Teléfono", key="pedido_telefono")
+            comentarios = st.text_area(
+                "Observaciones",
+                key="pedido_observaciones",
+                placeholder="Si es tu primera compra añade tus datos para facturar (CIF/NIF, Nombre, Dirección)"
+            )
             enviar = st.form_submit_button("📨 Enviar pedido")
 
             if enviar:
-                resumen_txt = (
-                    f"Pedido enviado por: {nombre}\n"
-                    f"Telefono: {telefono}\n\n{resumen}\n"
-                    f"Total: {total:.2f} euros (IVA incluido)\n\nComentarios: {comentarios}"
-                )
-                generar_pdf(nombre, resumen, total, comentarios, ruta_pdf)
-                enviar_pedido_por_email("Nuevo pedido de catálogo", resumen_txt, ruta_pdf)
-                st.success("✅ Pedido enviado correctamente")
-                st.session_state.pdf_generado = True
-                st.session_state.carrito = []
+                nombre_limpio = nombre.strip()
+                telefono_limpio = telefono.strip()
+
+                if not nombre_limpio or not telefono_limpio:
+                    if not nombre_limpio and not telefono_limpio:
+                        aviso = "Faltan nombre y teléfono para poder enviar el pedido."
+                    elif not nombre_limpio:
+                        aviso = "Falta el nombre para poder enviar el pedido."
+                    else:
+                        aviso = "Falta el teléfono para poder enviar el pedido."
+
+                    st.warning(aviso)
+                    components.html(
+                        """
+                        <script>
+                        const doc = window.parent.document;
+                        const heading = Array.from(doc.querySelectorAll('*')).find(el => (el.innerText || '').trim() === 'Tu nombre');
+                        if (heading) {
+                            heading.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        }
+                        const inputs = Array.from(doc.querySelectorAll('input')).filter(el => el.offsetParent !== null);
+                        const target = inputs.find(el => !el.value.trim());
+                        if (target) {
+                            target.focus();
+                        }
+                        </script>
+                        """,
+                        height=0,
+                    )
+                else:
+                    resumen_txt = (
+                        f"Pedido enviado por: {nombre_limpio}\n"
+                        f"Telefono: {telefono_limpio}\n\n{resumen}\n"
+                        f"Total: {total:.2f} euros (IVA incluido)\n\nComentarios: {comentarios}"
+                    )
+                    generar_pdf(nombre_limpio, resumen, total, comentarios, ruta_pdf)
+                    enviar_pedido_por_email("Nuevo pedido de catálogo", resumen_txt, ruta_pdf)
+                    st.success("✅ Pedido enviado correctamente")
+                    st.session_state.pdf_generado = True
+                    st.session_state.carrito = []
 
         b1, b2, b3 = st.columns(3)
         with b1:
