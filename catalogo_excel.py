@@ -782,19 +782,22 @@ def inyectar_css_tarjetas_rejilla():
 
 
 def render_rejilla_component(items, altura=780):
+    import html, json
     cards = []
     for item in items:
         href = item["href"]
         alt = item["alt"]
-        href_js = href.replace("'", "\'")
+        href_js = json.dumps(href)
+        alt_attr = html.escape(alt, quote=True)
+        href_attr = html.escape(href, quote=True)
         if item.get("img"):
-            media = f'<img src="{item["img"]}" alt="{alt}">'
+            media = f'<img src="{item["img"]}" alt="{alt_attr}">'
         else:
-            fallback = item.get("fallback", "📦")
+            fallback = html.escape(str(item.get("fallback", "📦")))
             media = f'<div class="grid-fallback">{fallback}</div>'
+        onclick = f"try{{window.parent.location.search={href_js};}}catch(e){{window.location.search={href_js};}} return false;"
         cards.append(
-            f'<a class="grid-card" href="{href}" aria-label="{alt}" '
-            f'onclick="try{{window.parent.location.search='{href_js}';}}catch(e){{window.location.search='{href_js}';}} return false;">{media}</a>'
+            f'<a class="grid-card" href="{href_attr}" aria-label="{alt_attr}" onclick="{html.escape(onclick, quote=True)}">{media}</a>'
         )
 
     html = f"""
