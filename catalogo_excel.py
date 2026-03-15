@@ -639,69 +639,48 @@ def render_carrito():
 
 
 def render_catalogo(df):
-    st.markdown("## Buscar producto")
-    render_aply(APLY_SENALA, "Elige una familia o usa el buscador para encontrar tu producto.", altura=220)
-    busqueda_global = st.text_input("Busca por nombre o código sin entrar en familias")
-
-    if busqueda_global:
-        resultados = df[
-            df["Nombre"].str.contains(busqueda_global, case=False, na=False)
-            | df["Código"].astype(str).str.contains(busqueda_global, case=False, na=False)
-        ].copy()
-
-        st.markdown(f"### Resultados: {len(resultados)}")
-        for _, fila in resultados.iterrows():
-            st.markdown("---")
-            c1, c2 = st.columns([1, 2])
-
-            with c1:
-                ruta_img = obtener_ruta_imagen_producto(fila["Código"])
-                if ruta_img:
-                    st.image(ruta_img, use_container_width=True)
-                else:
-                    st.info("Sin imagen")
-
-            with c2:
-                st.markdown(f"### {fila['Nombre']}")
-                precio_con_iva = float(fila["Precio"])
-                precio_sin_iva = precio_con_iva / (1 + IVA) if precio_con_iva else 0
-                st.markdown(
-                    f"**Código:** {fila['Código']}  \n"
-                    f"**Familia:** {fila['Familia']}  \n"
-                    f"**Subfamilia:** {fila['Subfamilia']}  \n"
-                    f"💶 **Precio sin IVA:** {precio_sin_iva:.2f} €  \n"
-                    f"💰 **Precio con IVA:** {precio_con_iva:.2f} €"
-                )
-
-                tipo = st.radio(
-                    "Formato",
-                    FORMATOS,
-                    horizontal=True,
-                    key=f"tipo_busq_{fila['Código']}",
-                    label_visibility="collapsed",
-                )
-
-                qty_actual = cantidad_en_carrito(fila["Código"], tipo)
-                a1, a2, a3, a4 = st.columns([1, 1, 1.3, 1.5])
-                with a1:
-                    if st.button("-1", key=f"menos_busq_{fila['Código']}_{tipo}", use_container_width=True):
-                        quitar_del_carrito(fila["Código"], tipo, 1)
-                        st.rerun()
-                with a2:
-                    if st.button("+1", key=f"mas_busq_{fila['Código']}_{tipo}", use_container_width=True):
-                        agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
-                        st.rerun()
-                with a3:
-                    st.markdown(f"**En carrito:** {qty_actual}")
-                with a4:
-                    if st.button("Añadir 5", key=f"add5_busq_{fila['Código']}_{tipo}", use_container_width=True):
-                        agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
-                        st.rerun()
-        return
-
     if st.session_state.familia_actual is None:
-        st.markdown("## Selecciona una familia")
-        cols = st.columns(2)
+        st.markdown("## Familias")
+        st.caption("Toca una familia para ver los productos")
+
+        st.markdown(
+            """
+            <style>
+            .family-grid-card {
+                text-align:center;
+                margin-bottom:.55rem;
+            }
+            .family-grid-card img {
+                width: 100%;
+                max-height: 92px;
+                object-fit: contain;
+                border-radius: 18px;
+                box-shadow: 0 6px 16px rgba(0,0,0,.10);
+                background: #fff;
+            }
+            .family-grid-label {
+                margin-top: .2rem;
+                font-weight: 700;
+                font-size: .95rem;
+                color: #27451f;
+                line-height: 1.05rem;
+            }
+            @media (max-width: 768px) {
+                .family-grid-card img {
+                    max-height: 78px;
+                    border-radius: 14px;
+                }
+                .family-grid-label {
+                    font-size: .82rem;
+                    line-height: .95rem;
+                }
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        cols = st.columns(2, gap="small")
         for i, (familia, fam_id, _icono) in enumerate(FAMILIAS_ORDENADAS):
             with cols[i % 2]:
                 img = obtener_ruta_imagen_familia(familia)
@@ -710,10 +689,11 @@ def render_catalogo(df):
                     href = f"?familia={quote(familia)}"
                     st.markdown(
                         f"""
-                        <div class="family-wrap">
+                        <div class="family-grid-card">
                             <a class="family-card" href="{href}">
-                                <img src="data:image/png;base64,{img64}" style="width:100%;" />
+                                <img src="data:image/png;base64,{img64}" alt="{familia}" />
                             </a>
+                            <div class="family-grid-label">{familia}</div>
                         </div>
                         """,
                         unsafe_allow_html=True,
@@ -722,6 +702,63 @@ def render_catalogo(df):
                     if st.button(familia, key=f"btn_fam_{fam_id}", use_container_width=True):
                         st.session_state.familia_actual = familia
                         st.rerun()
+
+        with st.expander("🔎 Buscar producto por nombre o código"):
+            busqueda_global = st.text_input("Busca por nombre o código", key="busqueda_global_catalogo")
+            if busqueda_global:
+                resultados = df[
+                    df["Nombre"].str.contains(busqueda_global, case=False, na=False)
+                    | df["Código"].astype(str).str.contains(busqueda_global, case=False, na=False)
+                ].copy()
+
+                st.markdown(f"### Resultados: {len(resultados)}")
+                for _, fila in resultados.iterrows():
+                    st.markdown("---")
+                    c1, c2 = st.columns([1, 2])
+
+                    with c1:
+                        ruta_img = obtener_ruta_imagen_producto(fila["Código"])
+                        if ruta_img:
+                            st.image(ruta_img, use_container_width=True)
+                        else:
+                            st.info("Sin imagen")
+
+                    with c2:
+                        st.markdown(f"### {fila['Nombre']}")
+                        precio_con_iva = float(fila["Precio"])
+                        precio_sin_iva = precio_con_iva / (1 + IVA) if precio_con_iva else 0
+                        st.markdown(
+                            f"**Código:** {fila['Código']}  \n"
+                            f"**Familia:** {fila['Familia']}  \n"
+                            f"**Subfamilia:** {fila['Subfamilia']}  \n"
+                            f"💶 **Precio sin IVA:** {precio_sin_iva:.2f} €  \n"
+                            f"💰 **Precio con IVA:** {precio_con_iva:.2f} €"
+                        )
+
+                        tipo = st.radio(
+                            "Formato",
+                            FORMATOS,
+                            horizontal=True,
+                            key=f"tipo_busq_{fila['Código']}",
+                            label_visibility="collapsed",
+                        )
+
+                        qty_actual = cantidad_en_carrito(fila["Código"], tipo)
+                        a1, a2, a3, a4 = st.columns([1, 1, 1.3, 1.5])
+                        with a1:
+                            if st.button("-1", key=f"menos_busq_{fila['Código']}_{tipo}", use_container_width=True):
+                                quitar_del_carrito(fila["Código"], tipo, 1)
+                                st.rerun()
+                        with a2:
+                            if st.button("+1", key=f"mas_busq_{fila['Código']}_{tipo}", use_container_width=True):
+                                agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
+                                st.rerun()
+                        with a3:
+                            st.markdown(f"**En carrito:** {qty_actual}")
+                        with a4:
+                            if st.button("Añadir 5", key=f"add5_busq_{fila['Código']}_{tipo}", use_container_width=True):
+                                agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
+                                st.rerun()
         return
 
     familia_actual = st.session_state.familia_actual
@@ -736,6 +773,7 @@ def render_catalogo(df):
             st.markdown(f"## {familia_actual}")
 
         if st.session_state.subfamilia_actual is None:
+            render_aply(APLY_SENALA, "Elige una subfamilia para ver los productos.", altura=190)
             subfamilias = (
                 df[df["Familia"] == familia_actual]["Subfamilia"]
                 .dropna()
@@ -758,74 +796,69 @@ def render_catalogo(df):
             return
 
     subfamilia_actual = st.session_state.subfamilia_actual
+    productos = df[
+        (df["Familia"] == familia_actual) & (df["Subfamilia"] == subfamilia_actual)
+    ].copy()
 
-    if familia_actual and subfamilia_actual:
-        nav1, nav2, nav3 = st.columns([1, 1, 3])
-        with nav1:
-            if st.button("⬅️ Subfamilias", use_container_width=True):
-                volver_a_subfamilias()
-                st.rerun()
-        with nav2:
-            if st.button("🏠 Familias", use_container_width=True):
-                volver_a_familias()
-                st.rerun()
-        with nav3:
-            st.markdown(f"### {familia_actual} / {subfamilia_actual}")
+    top1, top2, top3 = st.columns([1, 2, 1.4])
+    with top1:
+        if st.button("⬅️ Subfamilias", use_container_width=True):
+            volver_a_subfamilias()
+            st.rerun()
+    with top2:
+        st.markdown(f"### {subfamilia_actual}")
+    with top3:
+        if st.button(f"🛒 Ver carrito ({total_items_carrito()})", key="btn_carrito_catalogo", use_container_width=True):
+            ir_a_carrito()
+            st.rerun()
 
-        productos = df[(df["Familia"] == familia_actual) & (df["Subfamilia"] == subfamilia_actual)].copy()
+    render_aply(APLY_SENALA, "Pulsa +1 o Añadir 5 para meter productos en tu pedido.", altura=190)
 
-        busqueda = st.text_input("Buscar dentro de esta subfamilia")
-        if busqueda:
-            productos = productos[
-                productos["Nombre"].str.contains(busqueda, case=False, na=False)
-                | productos["Código"].astype(str).str.contains(busqueda, case=False, na=False)
-            ]
+    for _, fila in productos.iterrows():
+        st.markdown("---")
+        c1, c2 = st.columns([1, 2])
 
-        for _, fila in productos.iterrows():
-            st.markdown("---")
-            c1, c2 = st.columns([1, 2])
+        with c1:
+            ruta_img = obtener_ruta_imagen_producto(fila["Código"])
+            if ruta_img:
+                st.image(ruta_img, use_container_width=True)
+            else:
+                st.info("Sin imagen")
 
-            with c1:
-                ruta_img = obtener_ruta_imagen_producto(fila["Código"])
-                if ruta_img:
-                    st.image(ruta_img, use_container_width=True)
-                else:
-                    st.info("Sin imagen")
+        with c2:
+            st.markdown(f"### {fila['Nombre']}")
+            precio_con_iva = float(fila["Precio"])
+            precio_sin_iva = precio_con_iva / (1 + IVA) if precio_con_iva else 0
+            st.markdown(
+                f"**Código:** {fila['Código']}  \n"
+                f"💶 **Precio sin IVA:** {precio_sin_iva:.2f} €  \n"
+                f"💰 **Precio con IVA:** {precio_con_iva:.2f} €"
+            )
 
-            with c2:
-                st.markdown(f"### {fila['Nombre']}")
-                precio_con_iva = float(fila["Precio"])
-                precio_sin_iva = precio_con_iva / (1 + IVA) if precio_con_iva else 0
-                st.markdown(
-                    f"**Código:** {fila['Código']}  \n"
-                    f"💶 **Precio sin IVA:** {precio_sin_iva:.2f} €  \n"
-                    f"💰 **Precio con IVA:** {precio_con_iva:.2f} €"
-                )
+            tipo = st.radio(
+                "Formato",
+                FORMATOS,
+                horizontal=True,
+                key=f"tipo_{fila['Código']}",
+                label_visibility="collapsed",
+            )
 
-                tipo = st.radio(
-                    "Formato",
-                    FORMATOS,
-                    horizontal=True,
-                    key=f"tipo_{fila['Código']}",
-                    label_visibility="collapsed",
-                )
-
-                qty_actual = cantidad_en_carrito(fila["Código"], tipo)
-                a1, a2, a3, a4 = st.columns([1, 1, 1.3, 1.5])
-                with a1:
-                    if st.button("-1", key=f"menos_{fila['Código']}_{tipo}", use_container_width=True):
-                        quitar_del_carrito(fila["Código"], tipo, 1)
-                        st.rerun()
-                with a2:
-                    if st.button("+1", key=f"mas_{fila['Código']}_{tipo}", use_container_width=True):
-                        agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
-                        st.rerun()
-                with a3:
-                    st.markdown(f"**En carrito:** {qty_actual}")
-                with a4:
-                    if st.button("Añadir 5", key=f"add5_{fila['Código']}_{tipo}", use_container_width=True):
-                        agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
-                        st.rerun()
+            qty_actual = cantidad_en_carrito(fila["Código"], tipo)
+            a1, a2, a3, a4 = st.columns([1, 1, 1.3, 1.5])
+            with a1:
+                if st.button("-1", key=f"menos_{fila['Código']}_{tipo}", use_container_width=True):
+                    quitar_del_carrito(fila["Código"], tipo, 1)
+                    st.rerun()
+            with a2:
+                if st.button("+1", key=f"mas_{fila['Código']}_{tipo}", use_container_width=True):
+                    agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
+                    st.rerun()
+            with a3:
+                st.markdown(f"**En carrito:** {qty_actual}")
+            with a4:
+                if st.button("Añadir 5", key=f"add5_{fila['Código']}_{tipo}", use_container_width=True):
+                    agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
+                    st.rerun()
 
 
 if "carrito" not in st.session_state:
