@@ -781,77 +781,90 @@ def inyectar_css_tarjetas_rejilla():
     )
 
 
+def render_rejilla_component(items, altura=780):
+    cards = []
+    for item in items:
+        href = item["href"]
+        alt = item["alt"]
+        if item.get("img"):
+            media = f'<img src="{item["img"]}" alt="{alt}">'
+        else:
+            fallback = item.get("fallback", "📦")
+            media = f'<div class="grid-fallback">{fallback}</div>'
+        cards.append(f'<a class="grid-card" href="{href}" target="_top" aria-label="{alt}">{media}</a>')
+
+    html = f"""
+    <!doctype html>
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      html, body {{ margin:0; padding:0; background:transparent; overflow:hidden; }}
+      .grid-wrap {{
+        display:grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        padding: 2px 2px 8px 2px;
+        box-sizing:border-box;
+      }}
+      .grid-card {{
+        display:block;
+        text-decoration:none;
+        background:#fff;
+        border:1px solid #e6efe2;
+        border-radius:20px;
+        padding:3px;
+        box-shadow:0 7px 18px rgba(0,0,0,.08);
+        overflow:hidden;
+        min-height: 120px;
+      }}
+      .grid-card img {{
+        display:block;
+        width:100%;
+        height:auto;
+        border-radius:17px;
+      }}
+      .grid-fallback {{
+        display:flex; align-items:center; justify-content:center;
+        min-height:120px;
+        border-radius:17px;
+        background:linear-gradient(135deg,#f8fbf8,#eef7eb);
+        font-size:3rem;
+      }}
+    </style>
+    </head>
+    <body>
+      <div class="grid-wrap">{''.join(cards)}</div>
+    </body>
+    </html>
+    """
+    components.html(html, height=altura, scrolling=False)
+
+
 def render_rejilla_familias():
-    inyectar_css_tarjetas_rejilla()
-    html = ['<div class="aply-grid-html">']
+    items = []
     for familia, _fam_id, icono in FAMILIAS_ORDENADAS:
         img = obtener_ruta_imagen_familia(familia)
-        href = qp_url(pantalla="catalogo", familia=familia)
-        html.append(f'<a class="aply-grid-card-link" href="{href}"><div class="aply-grid-card-box">')
-        if img and img.exists():
-            html.append(f'<img src="{imagen_data_uri(img)}" alt="{familia}">')
-        else:
-            html.append(f'<div class="aply-grid-card-fallback">{icono}</div>')
-        html.append('</div></a>')
-    html.append('</div>')
-    st.markdown("".join(html), unsafe_allow_html=True)
+        items.append({
+            "href": qp_url(pantalla="catalogo", familia=familia),
+            "alt": familia,
+            "img": imagen_data_uri(img) if img and img.exists() else None,
+            "fallback": icono,
+        })
+    render_rejilla_component(items, altura=720)
 
 
 def render_rejilla_subfamilias_quimicos():
-    inyectar_css_tarjetas_rejilla()
-    html = ['<div class="aply-grid-html">']
+    items = []
     for subfamilia, _archivo in QUIMICOS_SUBFAMILIAS_ORDENADAS:
         img = obtener_ruta_imagen_subfamilia_quimicos(subfamilia)
-        href = qp_url(pantalla="catalogo", familia="Químicos", subfamilia=subfamilia)
-        html.append(f'<a class="aply-grid-card-link" href="{href}"><div class="aply-grid-card-box">')
-        if img and img.exists():
-            html.append(f'<img src="{imagen_data_uri(img)}" alt="{subfamilia}">')
-        else:
-            html.append(f'<div class="aply-grid-card-fallback" style="font-size:1rem;font-weight:700;line-height:1.15;padding:1rem;text-align:center">{subfamilia}</div>')
-        html.append('</div></a>')
-    html.append('</div>')
-    st.markdown("".join(html), unsafe_allow_html=True)
-
-
-def render_rejilla_familias():
-    inyectar_css_tarjetas_rejilla()
-    for fila in range(0, len(FAMILIAS_ORDENADAS), 2):
-        st.markdown("<div class='aply-grid-row-marker'></div>", unsafe_allow_html=True)
-        cols = st.columns(2, gap="small")
-        for idx, (familia, _fam_id, icono) in enumerate(FAMILIAS_ORDENADAS[fila:fila+2]):
-            with cols[idx]:
-                st.markdown("<div class='aply-grid-card'>", unsafe_allow_html=True)
-                img = obtener_ruta_imagen_familia(familia)
-                if img and img.exists():
-                    st.image(str(img), use_container_width=True)
-                else:
-                    st.markdown(f"<div class='aply-grid-card-emoji'>{icono}</div>", unsafe_allow_html=True)
-                if st.button("Abrir", key=f"familia_btn_{familia}", use_container_width=True):
-                    seleccionar_familia(familia)
-                    st.rerun()
-                st.markdown("</div>", unsafe_allow_html=True)
-
-
-
-def render_rejilla_subfamilias_quimicos():
-    inyectar_css_tarjetas_rejilla()
-    for fila in range(0, len(QUIMICOS_SUBFAMILIAS_ORDENADAS), 2):
-        st.markdown("<div class='aply-grid-row-marker'></div>", unsafe_allow_html=True)
-        cols = st.columns(2, gap="small")
-        for idx, (subfamilia, _archivo) in enumerate(QUIMICOS_SUBFAMILIAS_ORDENADAS[fila:fila+2]):
-            with cols[idx]:
-                st.markdown("<div class='aply-grid-card'>", unsafe_allow_html=True)
-                img = obtener_ruta_imagen_subfamilia_quimicos(subfamilia)
-                if img and img.exists():
-                    st.image(str(img), use_container_width=True)
-                else:
-                    st.markdown(f"<div style='font-size:1rem;text-align:center;font-weight:700;line-height:1.15;padding:2rem .35rem'>{subfamilia}</div>", unsafe_allow_html=True)
-                if st.button("Abrir", key=f"subq_btn_{subfamilia}", use_container_width=True):
-                    st.session_state.subfamilia_actual = subfamilia
-                    st.session_state.pantalla_actual = "catalogo"
-                    st.rerun()
-                st.markdown("</div>", unsafe_allow_html=True)
-
+        items.append({
+            "href": qp_url(pantalla="catalogo", familia="Químicos", subfamilia=subfamilia),
+            "alt": subfamilia,
+            "img": imagen_data_uri(img) if img and img.exists() else None,
+            "fallback": subfamilia,
+        })
+    render_rejilla_component(items, altura=720)
 
 
 def construir_mapa_cantidades_carrito():
