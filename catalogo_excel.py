@@ -659,46 +659,43 @@ def render_catalogo(df):
                 background: linear-gradient(180deg,#ffffff 0%,#f6faf5 100%);
                 border:1px solid #d9ead3;
                 border-radius:16px;
-                padding:.45rem .4rem .4rem .4rem;
+                padding:.3rem;
                 text-align:center;
                 min-height: 132px;
                 box-shadow: 0 6px 16px rgba(0,0,0,.06);
                 display:flex;
-                flex-direction:column;
                 justify-content:center;
                 align-items:center;
+                overflow:hidden;
             }
             .family-grid-mobile-card img {
                 width: 100%;
-                max-width: 122px;
-                max-height: 64px;
+                max-width: 138px;
+                max-height: 112px;
                 object-fit: contain;
-                border-radius: 12px;
-            }
-            .family-grid-mobile-label {
-                margin-top: .28rem;
-                font-weight: 700;
-                font-size: .84rem;
-                color: #27451f;
-                line-height: 1rem;
+                border-radius: 14px;
+                display:block;
             }
             .family-grid-mobile-emoji {
-                font-size: 2rem;
+                font-size: 4.2rem;
                 line-height: 1;
-                margin-bottom: .28rem;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                width:100%;
+                height:100%;
             }
             @media (max-width: 420px) {
                 .family-grid-mobile-card {
                     min-height: 118px;
-                    padding:.38rem .32rem;
+                    padding:.22rem;
                 }
                 .family-grid-mobile-card img {
-                    max-width: 104px;
-                    max-height: 56px;
+                    max-width: 124px;
+                    max-height: 100px;
                 }
-                .family-grid-mobile-label {
-                    font-size: .78rem;
-                    line-height: .92rem;
+                .family-grid-mobile-emoji {
+                    font-size: 3.7rem;
                 }
             }
             </style>
@@ -715,7 +712,7 @@ def render_catalogo(df):
             else:
                 img_html = f'<div class="family-grid-mobile-emoji">{icono}</div>'
             html_cards.append(
-                f'<a href="{href}"><div class="family-grid-mobile-card">{img_html}<div class="family-grid-mobile-label">{familia}</div></div></a>'
+                f'<a href="{href}"><div class="family-grid-mobile-card">{img_html}</div></a>'
             )
         html_cards.append('</div>')
         st.markdown("".join(html_cards), unsafe_allow_html=True)
