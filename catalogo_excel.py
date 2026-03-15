@@ -196,6 +196,60 @@ def total_items_carrito():
     return sum(int(item["Cantidad"]) for item in st.session_state.carrito)
 
 
+def total_importe_carrito():
+    return sum(float(item["Cantidad"]) * float(item["PrecioUnitario"]) for item in st.session_state.carrito)
+
+
+def render_boton_carrito_flotante():
+    total_items = total_items_carrito()
+    total_importe = total_importe_carrito()
+    st.markdown(
+        f"""
+        <style>
+        .aply-float-cart {{
+            position: fixed;
+            top: 14px;
+            right: 16px;
+            z-index: 99999;
+            background: #355e2b;
+            color: #ffffff !important;
+            border-radius: 999px;
+            padding: 0.72rem 1rem;
+            box-shadow: 0 12px 26px rgba(53,94,43,.28);
+            text-decoration: none !important;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: .45rem;
+            border: 1px solid rgba(255,255,255,.18);
+        }}
+        .aply-float-cart:hover {{
+            color: #ffffff !important;
+            transform: translateY(-1px);
+        }}
+        .aply-float-cart small {{
+            opacity: .92;
+            font-weight: 600;
+        }}
+        @media (max-width: 768px) {{
+            .aply-float-cart {{
+                top: 10px;
+                right: 10px;
+                padding: 0.65rem 0.9rem;
+                font-size: 0.92rem;
+            }}
+        }}
+        </style>
+        <a class="aply-float-cart" href="?pantalla=carrito">
+            <span>🛒</span>
+            <span>{total_importe:.2f} €</span>
+            <small>({total_items})</small>
+        </a>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def obtener_logo_src():
     if LOGO_LOCAL.exists():
         return f"data:image/png;base64,{imagen_a_base64(LOGO_LOCAL)}"
@@ -354,76 +408,74 @@ def render_menu_superior():
 
 def render_inicio():
     logo_src = obtener_logo_src()
-    left, right = st.columns([1.9, 1.1])
 
-    with left:
+    st.markdown(
+        f"""
+        <div class='hero-card'>
+            <div class='hero-badge'>Catálogo online · Pedido rápido</div>
+            <img src='{logo_src}' style='width: min(430px, 82%); margin-bottom: 1rem;' />
+            <h1 class='hero-title'>Haz tu pedido online</h1>
+            <p class='hero-subtitle'>Accede al catálogo de Aplytec de forma rápida y sencilla. Encuentra lo que necesitas, añádelo al carrito y envía tu pedido desde el móvil en pocos pasos.</p>
+            <div class='hero-mini-grid'>
+                <div class='hero-mini-card'>📦 Productos organizados por familias</div>
+                <div class='hero-mini-card'>🛒 Compra rápida y clara</div>
+                <div class='hero-mini-card'>💬 Atención directa por WhatsApp</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
+    render_aply(APLY_SALUDA, "Hola, soy Aply. Entra al catálogo y prepara tu pedido en pocos pasos.", altura=280)
+
+    st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if st.button("📦 Ver productos", use_container_width=True, key="inicio_productos"):
+            ir_a_catalogo()
+            st.rerun()
+    with c2:
+        if st.button(f"🛒 Mi carrito ({total_items_carrito()})", use_container_width=True, key="inicio_carrito"):
+            ir_a_carrito()
+            st.rerun()
+    with c3:
+        if st.button("📞 Contacto", use_container_width=True, key="inicio_contacto"):
+            ir_a_contacto()
+            st.rerun()
+
+    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
+    cta1, cta2 = st.columns([1.8, 1.2])
+    with cta1:
         st.markdown(
-            f"""
-            <div class='hero-card'>
-                <div class='hero-badge'>Catálogo online · Pedido rápido</div>
-                <img src='{logo_src}' style='width: min(430px, 82%); margin-bottom: 1rem;' />
-                <h1 class='hero-title'>Haz tu pedido online</h1>
-                <p class='hero-subtitle'>Accede al catálogo de Aplytec de forma rápida y sencilla. Encuentra lo que necesitas, añádelo al carrito y envía tu pedido desde el móvil en pocos pasos.</p>
-                <div class='hero-mini-grid'>
-                    <div class='hero-mini-card'>📦 Productos organizados por familias</div>
-                    <div class='hero-mini-card'>🛒 Compra rápida y clara</div>
-                    <div class='hero-mini-card'>💬 Atención directa por WhatsApp</div>
-                </div>
+            """
+            <div class='cta-band'>
+                <h3>Escanea, entra y pide</h3>
+                <p style='margin-top:.35rem;'>Ideal para panfletos y clientes: acceso directo al catálogo, navegación fácil y contacto inmediato.</p>
             </div>
             """,
             unsafe_allow_html=True,
         )
+    with cta2:
+        st.link_button("💬 Pedir por WhatsApp", WHATSAPP_LINK, use_container_width=True)
 
-        st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            if st.button("📦 Ver productos", use_container_width=True, key="inicio_productos"):
-                ir_a_catalogo()
-                st.rerun()
-        with c2:
-            if st.button(f"🛒 Mi carrito ({total_items_carrito()})", use_container_width=True, key="inicio_carrito"):
-                ir_a_carrito()
-                st.rerun()
-        with c3:
-            if st.button("📞 Contacto", use_container_width=True, key="inicio_contacto"):
-                ir_a_contacto()
-                st.rerun()
-
-        st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
-        cta1, cta2 = st.columns([1.8, 1.2])
-        with cta1:
-            st.markdown(
-                """
-                <div class='cta-band'>
-                    <h3>Escanea, entra y pide</h3>
-                    <p style='margin-top:.35rem;'>Ideal para panfletos y clientes: acceso directo al catálogo, navegación fácil y contacto inmediato.</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-        with cta2:
-            st.link_button("💬 Pedir por WhatsApp", WHATSAPP_LINK, use_container_width=True)
-
-        st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
-        w1, w2 = st.columns([2, 1])
-        with w1:
-            st.markdown(
-                """
-                <div class='contact-card'>
-                    <h3 style='margin-top:0;'>Pedido rápido desde tu móvil</h3>
-                    <p style='margin-bottom:0.45rem;'>Explora las familias, añade productos al carrito y envía tu pedido de forma cómoda, clara y sin llamadas innecesarias.</p>
-                    <p style='margin-bottom:0;'><strong>WhatsApp:</strong> +34 647 93 63 56</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-        with w2:
-            if st.button("📦 Entrar al catálogo", use_container_width=True, key="inicio_catalogo_extra"):
-                ir_a_catalogo()
-                st.rerun()
-
-    with right:
-        render_aply(APLY_SALUDA, "Hola, soy Aply. Entra al catálogo y prepara tu pedido en pocos pasos.", altura=320)
+    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
+    w1, w2 = st.columns([2, 1])
+    with w1:
+        st.markdown(
+            """
+            <div class='contact-card'>
+                <h3 style='margin-top:0;'>Pedido rápido desde tu móvil</h3>
+                <p style='margin-bottom:0.45rem;'>Explora las familias, añade productos al carrito y envía tu pedido de forma cómoda, clara y sin llamadas innecesarias.</p>
+                <p style='margin-bottom:0;'><strong>WhatsApp:</strong> +34 647 93 63 56</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with w2:
+        if st.button("📦 Entrar al catálogo", use_container_width=True, key="inicio_catalogo_extra"):
+            ir_a_catalogo()
+            st.rerun()
 
 
 
@@ -587,11 +639,8 @@ def render_carrito():
 
 
 def render_catalogo(df):
-    top_left, top_right = st.columns([2.2, 1])
-    with top_left:
-        st.markdown("## Buscar producto")
-    with top_right:
-        render_aply(APLY_SENALA, "Elige una familia o usa el buscador para encontrar tu producto.", altura=220)
+    st.markdown("## Buscar producto")
+    render_aply(APLY_SENALA, "Elige una familia o usa el buscador para encontrar tu producto.", altura=220)
     busqueda_global = st.text_input("Busca por nombre o código sin entrar en familias")
 
     if busqueda_global:
@@ -633,27 +682,21 @@ def render_catalogo(df):
                 )
 
                 qty_actual = cantidad_en_carrito(fila["Código"], tipo)
-                a1, a2, a3, a4 = st.columns([1, 1, 1.2, 2.2])
+                a1, a2, a3, a4 = st.columns([1, 1, 1.3, 1.5])
                 with a1:
-                    if st.button("−", key=f"menos_busq_{fila['Código']}_{tipo}", use_container_width=True):
+                    if st.button("-1", key=f"menos_busq_{fila['Código']}_{tipo}", use_container_width=True):
                         quitar_del_carrito(fila["Código"], tipo, 1)
                         st.rerun()
                 with a2:
-                    if st.button("+", key=f"mas_busq_{fila['Código']}_{tipo}", use_container_width=True):
+                    if st.button("+1", key=f"mas_busq_{fila['Código']}_{tipo}", use_container_width=True):
                         agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
                         st.rerun()
                 with a3:
                     st.markdown(f"**En carrito:** {qty_actual}")
                 with a4:
-                    b1, b2 = st.columns(2)
-                    with b1:
-                        if st.button("Añadir 1", key=f"add1_busq_{fila['Código']}_{tipo}", use_container_width=True):
-                            agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
-                            st.rerun()
-                    with b2:
-                        if st.button("Añadir 5", key=f"add5_busq_{fila['Código']}_{tipo}", use_container_width=True):
-                            agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
-                            st.rerun()
+                    if st.button("Añadir 5", key=f"add5_busq_{fila['Código']}_{tipo}", use_container_width=True):
+                        agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
+                        st.rerun()
         return
 
     if st.session_state.familia_actual is None:
@@ -768,27 +811,21 @@ def render_catalogo(df):
                 )
 
                 qty_actual = cantidad_en_carrito(fila["Código"], tipo)
-                a1, a2, a3, a4 = st.columns([1, 1, 1.2, 2.2])
+                a1, a2, a3, a4 = st.columns([1, 1, 1.3, 1.5])
                 with a1:
-                    if st.button("−", key=f"menos_{fila['Código']}_{tipo}", use_container_width=True):
+                    if st.button("-1", key=f"menos_{fila['Código']}_{tipo}", use_container_width=True):
                         quitar_del_carrito(fila["Código"], tipo, 1)
                         st.rerun()
                 with a2:
-                    if st.button("+", key=f"mas_{fila['Código']}_{tipo}", use_container_width=True):
+                    if st.button("+1", key=f"mas_{fila['Código']}_{tipo}", use_container_width=True):
                         agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
                         st.rerun()
                 with a3:
                     st.markdown(f"**En carrito:** {qty_actual}")
                 with a4:
-                    b1, b2 = st.columns(2)
-                    with b1:
-                        if st.button("Añadir 1", key=f"add1_{fila['Código']}_{tipo}", use_container_width=True):
-                            agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
-                            st.rerun()
-                    with b2:
-                        if st.button("Añadir 5", key=f"add5_{fila['Código']}_{tipo}", use_container_width=True):
-                            agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
-                            st.rerun()
+                    if st.button("Añadir 5", key=f"add5_{fila['Código']}_{tipo}", use_container_width=True):
+                        agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
+                        st.rerun()
 
 
 if "carrito" not in st.session_state:
@@ -811,11 +848,14 @@ if qp.get("familia"):
 if qp.get("subfamilia"):
     st.session_state.subfamilia_actual = qp.get("subfamilia")
     st.session_state.pantalla_actual = "catalogo"
+if qp.get("pantalla") in {"inicio", "catalogo", "carrito", "contacto"}:
+    st.session_state.pantalla_actual = qp.get("pantalla")
 
 st.set_page_config(page_title="Catálogo APLYTEC", layout="wide")
 
 df = cargar_datos()
 render_menu_superior()
+render_boton_carrito_flotante()
 
 if st.session_state.pantalla_actual == "inicio":
     render_inicio()
