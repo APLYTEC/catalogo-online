@@ -161,6 +161,28 @@ def obtener_ruta_imagen_familia(nombre_familia):
     return None
 
 
+
+
+def obtener_ruta_imagen_subfamilia_quimicos(subfamilia):
+    mapa = {
+        "Lavavajillas": "sub_quimicos_lavavajillas",
+        "Desengrasantes": "sub_quimicos_desengrasantes",
+        "Suelos y superficies": "sub_quimicos_suelos_superficies",
+        "Baños y sanitarios": "sub_quimicos_banos_sanitarios",
+        "Desinfección": "sub_quimicos_desinfeccion",
+        "Lavandería": "sub_quimicos_lavanderia",
+        "Ambientadores": "sub_quimicos_ambientadores",
+        "Aseo personal": "sub_quimicos_aseo_personal",
+    }
+    nombre = mapa.get(str(subfamilia).strip())
+    if not nombre:
+        return None
+    for ext in [".png", ".jpg", ".jpeg", ".webp"]:
+        ruta = CARPETA_IMAGENES / f"{nombre}{ext}"
+        if ruta.exists():
+            return ruta
+    return None
+
 def imagen_a_base64(ruta):
     with open(ruta, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
