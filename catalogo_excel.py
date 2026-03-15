@@ -336,10 +336,15 @@ def ir_a_inicio():
     st.session_state.pantalla_actual = "inicio"
     st.session_state.familia_actual = None
     st.session_state.subfamilia_actual = None
-    st.query_params.clear()
 
 
 def ir_a_catalogo():
+    st.session_state.pantalla_actual = "catalogo"
+
+
+def seleccionar_familia(familia):
+    st.session_state.familia_actual = familia
+    st.session_state.subfamilia_actual = None
     st.session_state.pantalla_actual = "catalogo"
 
 
@@ -355,13 +360,10 @@ def volver_a_familias():
     st.session_state.pantalla_actual = "catalogo"
     st.session_state.familia_actual = None
     st.session_state.subfamilia_actual = None
-    st.query_params.clear()
 
 
 def volver_a_subfamilias():
     st.session_state.subfamilia_actual = None
-    st.query_params.clear()
-    st.query_params["familia"] = st.session_state.familia_actual
 
 
 def render_menu_superior():
@@ -696,22 +698,118 @@ def render_carrito():
 
 
 
+def inyectar_css_tarjetas_rejilla():
+    st.markdown(
+        """
+        <style>
+        .aply-grid-card {
+            background: linear-gradient(180deg,#ffffff 0%,#f6faf5 100%);
+            border:1px solid #d9ead3;
+            border-radius:16px;
+            padding:.02rem;
+            min-height: 146px;
+            box-shadow: 0 6px 16px rgba(0,0,0,.06);
+            overflow:hidden;
+        }
+        .aply-grid-card .stImage {
+            margin-bottom: 0 !important;
+        }
+        .aply-grid-card [data-testid="stImage"] img {
+            width: calc(100% - 2px);
+            height: auto;
+            min-height: 120px;
+            object-fit: contain;
+            display:block;
+            margin: 0 auto;
+            border-radius: 14px 14px 0 0;
+        }
+        .aply-grid-card-emoji {
+            min-height: 120px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size: 6.4rem;
+            line-height: 1;
+        }
+        .aply-grid-card div[data-testid="stButton"] {
+            margin-top: -0.55rem;
+        }
+        .aply-grid-card div[data-testid="stButton"] > button {
+            width:100%;
+            min-height: 1.25rem;
+            padding:.18rem 0 .28rem 0;
+            border-radius:0 0 16px 16px;
+            border:1px solid #d9ead3;
+            border-top:none;
+            background: linear-gradient(180deg,#ffffff 0%,#f6faf5 100%);
+            box-shadow:none;
+        }
+        .aply-grid-card div[data-testid="stButton"] > button p {
+            font-size:0 !important;
+            color:transparent !important;
+            line-height:0 !important;
+            margin:0 !important;
+        }
+        .aply-grid-card div[data-testid="stButton"] > button:hover {
+            border-color:#cde2c5;
+            background: linear-gradient(180deg,#ffffff 0%,#eef7eb 100%);
+        }
+        @media (max-width: 420px) {
+            .aply-grid-card {
+                min-height: 136px;
+            }
+            .aply-grid-card [data-testid="stImage"] img {
+                min-height: 112px;
+            }
+            .aply-grid-card-emoji {
+                min-height: 112px;
+                font-size: 5.8rem;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_rejilla_familias():
+    inyectar_css_tarjetas_rejilla()
     for fila in range(0, len(FAMILIAS_ORDENADAS), 2):
         cols = st.columns(2, gap="small")
         for idx, (familia, _fam_id, icono) in enumerate(FAMILIAS_ORDENADAS[fila:fila+2]):
             with cols[idx]:
+                st.markdown("<div class='aply-grid-card'>", unsafe_allow_html=True)
                 img = obtener_ruta_imagen_familia(familia)
                 if img and img.exists():
                     st.image(str(img), use_container_width=True)
                 else:
-                    st.markdown(f"<div style='font-size:5rem;text-align:center;line-height:1.1'>{icono}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='aply-grid-card-emoji'>{icono}</div>", unsafe_allow_html=True)
                 if st.button("Abrir", key=f"familia_btn_{familia}", use_container_width=True):
                     seleccionar_familia(familia)
                     st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_rejilla_subfamilias_quimicos(familia_actual):
+    inyectar_css_tarjetas_rejilla()
+    for fila in range(0, len(QUIMICOS_SUBFAMILIAS_ORDENADAS), 2):
+        cols = st.columns(2, gap="small")
+        for idx, (subfamilia, _archivo) in enumerate(QUIMICOS_SUBFAMILIAS_ORDENADAS[fila:fila+2]):
+            with cols[idx]:
+                st.markdown("<div class='aply-grid-card'>", unsafe_allow_html=True)
+                img = obtener_ruta_imagen_subfamilia_quimicos(subfamilia)
+                if img and img.exists():
+                    st.image(str(img), use_container_width=True)
+                else:
+                    st.markdown(f"<div style='font-size:1.05rem;text-align:center;font-weight:700;line-height:1.2;padding:2.2rem .4rem'>{subfamilia}</div>", unsafe_allow_html=True)
+                if st.button("Abrir", key=f"subq_btn_{subfamilia}", use_container_width=True):
+                    st.session_state.subfamilia_actual = subfamilia
+                    st.session_state.pantalla_actual = "catalogo"
+                    st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
+
+
+def construir_mapa_cantidades_carrito():
     for fila in range(0, len(QUIMICOS_SUBFAMILIAS_ORDENADAS), 2):
         cols = st.columns(2, gap="small")
         for idx, (subfamilia, _archivo) in enumerate(QUIMICOS_SUBFAMILIAS_ORDENADAS[fila:fila+2]):
@@ -837,8 +935,6 @@ def render_catalogo(df):
                 with cols[i % 3]:
                     if st.button(sub, key=f"btn_sub_{sub}", use_container_width=True):
                         st.session_state.subfamilia_actual = sub
-                        st.query_params["familia"] = familia_actual
-                        st.query_params["subfamilia"] = sub
                         st.rerun()
             return
 
