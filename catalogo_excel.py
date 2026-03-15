@@ -702,12 +702,13 @@ def inyectar_css_tarjetas_rejilla():
     st.markdown(
         """
         <style>
+        .aply-grid-row-marker {height:0; margin:0; padding:0;}
         .aply-grid-card {
             background: linear-gradient(180deg,#ffffff 0%,#f6faf5 100%);
             border:1px solid #d9ead3;
-            border-radius:16px;
-            padding:.02rem;
-            min-height: 146px;
+            border-radius:18px;
+            padding:.08rem;
+            min-height: 138px;
             box-shadow: 0 6px 16px rgba(0,0,0,.06);
             overflow:hidden;
         }
@@ -717,28 +718,30 @@ def inyectar_css_tarjetas_rejilla():
         .aply-grid-card [data-testid="stImage"] img {
             width: calc(100% - 2px);
             height: auto;
-            min-height: 120px;
+            min-height: 116px;
+            max-height: 154px;
             object-fit: contain;
             display:block;
             margin: 0 auto;
-            border-radius: 14px 14px 0 0;
+            border-radius: 16px 16px 0 0;
         }
         .aply-grid-card-emoji {
-            min-height: 120px;
+            min-height: 116px;
+            max-height: 154px;
             display:flex;
             align-items:center;
             justify-content:center;
-            font-size: 6.4rem;
+            font-size: 5.9rem;
             line-height: 1;
         }
         .aply-grid-card div[data-testid="stButton"] {
-            margin-top: -0.55rem;
+            margin-top: -0.48rem;
         }
         .aply-grid-card div[data-testid="stButton"] > button {
             width:100%;
-            min-height: 1.25rem;
-            padding:.18rem 0 .28rem 0;
-            border-radius:0 0 16px 16px;
+            min-height: 1.15rem;
+            padding:.14rem 0 .22rem 0;
+            border-radius:0 0 18px 18px;
             border:1px solid #d9ead3;
             border-top:none;
             background: linear-gradient(180deg,#ffffff 0%,#f6faf5 100%);
@@ -754,16 +757,56 @@ def inyectar_css_tarjetas_rejilla():
             border-color:#cde2c5;
             background: linear-gradient(180deg,#ffffff 0%,#eef7eb 100%);
         }
-        @media (max-width: 420px) {
+        @media (max-width: 768px) {
+            .aply-grid-row-marker + div[data-testid="stHorizontalBlock"] {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                gap: .45rem !important;
+                align-items: stretch !important;
+            }
+            .aply-grid-row-marker + div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+                width: 50% !important;
+                min-width: 0 !important;
+                flex: 1 1 0 !important;
+            }
             .aply-grid-card {
-                min-height: 136px;
+                min-height: 124px;
+                border-radius:16px;
             }
             .aply-grid-card [data-testid="stImage"] img {
-                min-height: 112px;
+                min-height: 104px;
+                max-height: 132px;
+                border-radius: 14px 14px 0 0;
             }
             .aply-grid-card-emoji {
-                min-height: 112px;
-                font-size: 5.8rem;
+                min-height: 104px;
+                max-height: 132px;
+                font-size: 5.1rem;
+            }
+            .aply-grid-card div[data-testid="stButton"] {
+                margin-top: -0.42rem;
+            }
+            .aply-grid-card div[data-testid="stButton"] > button {
+                min-height: 1.05rem;
+                padding:.10rem 0 .18rem 0;
+                border-radius:0 0 16px 16px;
+            }
+        }
+        @media (max-width: 420px) {
+            .aply-grid-row-marker + div[data-testid="stHorizontalBlock"] {
+                gap: .38rem !important;
+            }
+            .aply-grid-card {
+                min-height: 116px;
+            }
+            .aply-grid-card [data-testid="stImage"] img {
+                min-height: 96px;
+                max-height: 122px;
+            }
+            .aply-grid-card-emoji {
+                min-height: 96px;
+                max-height: 122px;
+                font-size: 4.6rem;
             }
         }
         </style>
@@ -775,6 +818,7 @@ def inyectar_css_tarjetas_rejilla():
 def render_rejilla_familias():
     inyectar_css_tarjetas_rejilla()
     for fila in range(0, len(FAMILIAS_ORDENADAS), 2):
+        st.markdown("<div class='aply-grid-row-marker'></div>", unsafe_allow_html=True)
         cols = st.columns(2, gap="small")
         for idx, (familia, _fam_id, icono) in enumerate(FAMILIAS_ORDENADAS[fila:fila+2]):
             with cols[idx]:
@@ -790,9 +834,11 @@ def render_rejilla_familias():
                 st.markdown("</div>", unsafe_allow_html=True)
 
 
-def render_rejilla_subfamilias_quimicos(familia_actual):
+
+def render_rejilla_subfamilias_quimicos():
     inyectar_css_tarjetas_rejilla()
     for fila in range(0, len(QUIMICOS_SUBFAMILIAS_ORDENADAS), 2):
+        st.markdown("<div class='aply-grid-row-marker'></div>", unsafe_allow_html=True)
         cols = st.columns(2, gap="small")
         for idx, (subfamilia, _archivo) in enumerate(QUIMICOS_SUBFAMILIAS_ORDENADAS[fila:fila+2]):
             with cols[idx]:
@@ -801,30 +847,13 @@ def render_rejilla_subfamilias_quimicos(familia_actual):
                 if img and img.exists():
                     st.image(str(img), use_container_width=True)
                 else:
-                    st.markdown(f"<div style='font-size:1.05rem;text-align:center;font-weight:700;line-height:1.2;padding:2.2rem .4rem'>{subfamilia}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='font-size:1rem;text-align:center;font-weight:700;line-height:1.15;padding:2rem .35rem'>{subfamilia}</div>", unsafe_allow_html=True)
                 if st.button("Abrir", key=f"subq_btn_{subfamilia}", use_container_width=True):
                     st.session_state.subfamilia_actual = subfamilia
                     st.session_state.pantalla_actual = "catalogo"
                     st.rerun()
                 st.markdown("</div>", unsafe_allow_html=True)
 
-
-def construir_mapa_cantidades_carrito():
-    for fila in range(0, len(QUIMICOS_SUBFAMILIAS_ORDENADAS), 2):
-        cols = st.columns(2, gap="small")
-        for idx, (subfamilia, _archivo) in enumerate(QUIMICOS_SUBFAMILIAS_ORDENADAS[fila:fila+2]):
-            with cols[idx]:
-                img = obtener_ruta_imagen_subfamilia_quimicos(subfamilia)
-                if img and img.exists():
-                    st.image(str(img), use_container_width=True)
-                else:
-                    st.markdown(f"<div style='font-size:1.05rem;text-align:center;font-weight:700;line-height:1.2;padding:2.2rem .4rem'>{subfamilia}</div>", unsafe_allow_html=True)
-                if st.button("Abrir", key=f"subq_btn_{subfamilia}", use_container_width=True):
-                    st.session_state.subfamilia_actual = subfamilia
-                    st.session_state.pantalla_actual = "catalogo"
-                    st.query_params["familia"] = familia_actual
-                    st.query_params["subfamilia"] = subfamilia
-                    st.rerun()
 
 
 def construir_mapa_cantidades_carrito():
@@ -917,7 +946,7 @@ def render_catalogo(df):
             render_aply(APLY_SENALA, "Elige una subfamilia para ver los productos.", altura=190)
             if familia_actual == "Químicos":
                 st.markdown("### Selecciona una subfamilia")
-                render_rejilla_subfamilias_quimicos(familia_actual)
+                render_rejilla_subfamilias_quimicos()
                 return
             subfamilias = (
                 df[df["Familia"] == familia_actual]["Subfamilia"]
