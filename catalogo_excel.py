@@ -25,6 +25,17 @@ APLY_SENALA = CARPETA_IMAGENES / "aply_senalando.png"
 APLY_CARRITO = CARPETA_IMAGENES / "aply_carrito.png"
 APLY_MOVIL = CARPETA_IMAGENES / "aply_movil.png"
 
+QUIMICOS_SUBFAMILIAS_ORDENADAS = [
+    ("Lavavajillas", "sub_quimicos_lavavajillas.png"),
+    ("Desengrasantes", "sub_quimicos_desengrasantes.png"),
+    ("Suelos y superficies", "sub_quimicos_suelos_superficies.png"),
+    ("Baños y sanitarios", "sub_quimicos_banos_sanitarios.png"),
+    ("Desinfección", "sub_quimicos_desinfeccion.png"),
+    ("Lavandería", "sub_quimicos_lavanderia.png"),
+    ("Ambientadores", "sub_quimicos_ambientadores.png"),
+    ("Aseo personal", "sub_quimicos_aseo_personal.png"),
+]
+
 FAMILIAS_ORDENADAS = [
     ("Químicos", 1, "🧪"),
     ("Celulosas", 2, "🧻"),
@@ -208,35 +219,35 @@ def render_boton_carrito_flotante():
         <style>
         .aply-float-cart {{
             position: fixed;
-            top: 14px;
-            right: 16px;
-            z-index: 99999;
-            background: #355e2b;
+            top: 4.35rem;
+            right: 0.85rem;
+            z-index: 999999;
+            background: linear-gradient(135deg, #355e2b 0%, #4f8a3d 100%);
             color: #ffffff !important;
             border-radius: 999px;
             padding: 0.72rem 1rem;
             box-shadow: 0 12px 26px rgba(53,94,43,.28);
             text-decoration: none !important;
-            font-weight: 700;
+            font-weight: 800;
             display: inline-flex;
             align-items: center;
             gap: .45rem;
             border: 1px solid rgba(255,255,255,.18);
         }}
-        .aply-float-cart:hover {{
+        .aply-float-cart:hover, .aply-float-cart:visited, .aply-float-cart:active {{
             color: #ffffff !important;
-            transform: translateY(-1px);
+            text-decoration: none !important;
         }}
         .aply-float-cart small {{
-            opacity: .92;
-            font-weight: 600;
+            opacity: .95;
+            font-weight: 700;
         }}
         @media (max-width: 768px) {{
             .aply-float-cart {{
-                top: 10px;
-                right: 10px;
-                padding: 0.65rem 0.9rem;
-                font-size: 0.92rem;
+                top: 4.1rem;
+                right: 0.55rem;
+                padding: 0.62rem 0.85rem;
+                font-size: 0.90rem;
             }}
         }}
         </style>
@@ -789,6 +800,73 @@ def render_catalogo(df):
 
         if st.session_state.subfamilia_actual is None:
             render_aply(APLY_SENALA, "Elige una subfamilia para ver los productos.", altura=190)
+            if familia_actual == "Químicos":
+                st.markdown("### Selecciona una subfamilia")
+                st.markdown(
+                    """
+                    <style>
+                    .sub-grid-mobile {
+                        display:grid;
+                        grid-template-columns: repeat(2, minmax(0,1fr));
+                        gap: .55rem;
+                        margin-top: .35rem;
+                    }
+                    .sub-grid-mobile a {
+                        text-decoration:none !important;
+                    }
+                    .sub-grid-mobile-card {
+                        background: linear-gradient(180deg,#ffffff 0%,#f6faf5 100%);
+                        border:1px solid #d9ead3;
+                        border-radius:16px;
+                        padding:.02rem;
+                        text-align:center;
+                        min-height: 146px;
+                        box-shadow: 0 6px 16px rgba(0,0,0,.06);
+                        display:flex;
+                        justify-content:center;
+                        align-items:center;
+                        overflow:hidden;
+                    }
+                    .sub-grid-mobile-card img {
+                        width: calc(100% - 2px);
+                        height: calc(100% - 2px);
+                        object-fit: contain;
+                        border-radius: 14px;
+                        display:block;
+                        margin: 0 auto;
+                    }
+                    .sub-grid-mobile-fallback {
+                        font-size: 1.15rem;
+                        font-weight: 700;
+                        color: #355e2b;
+                        padding: .6rem;
+                    }
+                    @media (max-width: 420px) {
+                        .sub-grid-mobile-card {
+                            min-height: 136px;
+                            padding:.01rem;
+                        }
+                        .sub-grid-mobile-card img {
+                            width: calc(100% - 2px);
+                            height: calc(100% - 2px);
+                        }
+                    }
+                    </style>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                html_cards = ['<div class="sub-grid-mobile">']
+                for subfamilia, _archivo in QUIMICOS_SUBFAMILIAS_ORDENADAS:
+                    href = f"?familia={quote(familia_actual)}&subfamilia={quote(subfamilia)}"
+                    img = obtener_ruta_imagen_subfamilia_quimicos(subfamilia)
+                    if img:
+                        contenido = f'<img src="data:image/png;base64,{imagen_a_base64(img)}" alt="{subfamilia}">'
+                    else:
+                        contenido = f'<div class="sub-grid-mobile-fallback">{subfamilia}</div>'
+                    html_cards.append(f'<a href="{href}"><div class="sub-grid-mobile-card">{contenido}</div></a>')
+                html_cards.append('</div>')
+                st.markdown("".join(html_cards), unsafe_allow_html=True)
+                return
             subfamilias = (
                 df[df["Familia"] == familia_actual]["Subfamilia"]
                 .dropna()
