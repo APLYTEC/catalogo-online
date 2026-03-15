@@ -646,33 +646,59 @@ def render_catalogo(df):
         st.markdown(
             """
             <style>
-            .family-grid-card {
+            .family-grid-mobile {
+                display:grid;
+                grid-template-columns: repeat(2, minmax(0,1fr));
+                gap: .55rem;
+                margin-top: .35rem;
+            }
+            .family-grid-mobile a {
+                text-decoration:none !important;
+            }
+            .family-grid-mobile-card {
+                background: linear-gradient(180deg,#ffffff 0%,#f6faf5 100%);
+                border:1px solid #d9ead3;
+                border-radius:16px;
+                padding:.45rem .4rem .4rem .4rem;
                 text-align:center;
-                margin-bottom:.55rem;
+                min-height: 132px;
+                box-shadow: 0 6px 16px rgba(0,0,0,.06);
+                display:flex;
+                flex-direction:column;
+                justify-content:center;
+                align-items:center;
             }
-            .family-grid-card img {
+            .family-grid-mobile-card img {
                 width: 100%;
-                max-height: 92px;
+                max-width: 122px;
+                max-height: 64px;
                 object-fit: contain;
-                border-radius: 18px;
-                box-shadow: 0 6px 16px rgba(0,0,0,.10);
-                background: #fff;
+                border-radius: 12px;
             }
-            .family-grid-label {
-                margin-top: .2rem;
+            .family-grid-mobile-label {
+                margin-top: .28rem;
                 font-weight: 700;
-                font-size: .95rem;
+                font-size: .84rem;
                 color: #27451f;
-                line-height: 1.05rem;
+                line-height: 1rem;
             }
-            @media (max-width: 768px) {
-                .family-grid-card img {
-                    max-height: 78px;
-                    border-radius: 14px;
+            .family-grid-mobile-emoji {
+                font-size: 2rem;
+                line-height: 1;
+                margin-bottom: .28rem;
+            }
+            @media (max-width: 420px) {
+                .family-grid-mobile-card {
+                    min-height: 118px;
+                    padding:.38rem .32rem;
                 }
-                .family-grid-label {
-                    font-size: .82rem;
-                    line-height: .95rem;
+                .family-grid-mobile-card img {
+                    max-width: 104px;
+                    max-height: 56px;
+                }
+                .family-grid-mobile-label {
+                    font-size: .78rem;
+                    line-height: .92rem;
                 }
             }
             </style>
@@ -680,30 +706,22 @@ def render_catalogo(df):
             unsafe_allow_html=True,
         )
 
-        cols = st.columns(2, gap="small")
-        for i, (familia, fam_id, _icono) in enumerate(FAMILIAS_ORDENADAS):
-            with cols[i % 2]:
-                img = obtener_ruta_imagen_familia(familia)
-                if img:
-                    img64 = imagen_a_base64(img)
-                    href = f"?familia={quote(familia)}"
-                    st.markdown(
-                        f"""
-                        <div class="family-grid-card">
-                            <a class="family-card" href="{href}">
-                                <img src="data:image/png;base64,{img64}" alt="{familia}" />
-                            </a>
-                            <div class="family-grid-label">{familia}</div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    if st.button(familia, key=f"btn_fam_{fam_id}", use_container_width=True):
-                        st.session_state.familia_actual = familia
-                        st.rerun()
+        html_cards = ['<div class="family-grid-mobile">']
+        for familia, _fam_id, icono in FAMILIAS_ORDENADAS:
+            img = obtener_ruta_imagen_familia(familia)
+            href = f"?familia={quote(familia)}"
+            if img:
+                img_html = f'<img src="data:image/png;base64,{imagen_a_base64(img)}" alt="{familia}">'
+            else:
+                img_html = f'<div class="family-grid-mobile-emoji">{icono}</div>'
+            html_cards.append(
+                f'<a href="{href}"><div class="family-grid-mobile-card">{img_html}<div class="family-grid-mobile-label">{familia}</div></div></a>'
+            )
+        html_cards.append('</div>')
+        st.markdown("".join(html_cards), unsafe_allow_html=True)
 
         with st.expander("🔎 Buscar producto por nombre o código"):
+
             busqueda_global = st.text_input("Busca por nombre o código", key="busqueda_global_catalogo")
             if busqueda_global:
                 resultados = df[
