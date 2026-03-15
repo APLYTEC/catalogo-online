@@ -659,9 +659,9 @@ def render_catalogo(df):
                 background: linear-gradient(180deg,#ffffff 0%,#f6faf5 100%);
                 border:1px solid #d9ead3;
                 border-radius:16px;
-                padding:.3rem;
+                padding:.02rem;
                 text-align:center;
-                min-height: 132px;
+                min-height: 146px;
                 box-shadow: 0 6px 16px rgba(0,0,0,.06);
                 display:flex;
                 justify-content:center;
@@ -669,15 +669,15 @@ def render_catalogo(df):
                 overflow:hidden;
             }
             .family-grid-mobile-card img {
-                width: 100%;
-                max-width: 138px;
-                max-height: 112px;
+                width: calc(100% - 2px);
+                height: calc(100% - 2px);
                 object-fit: contain;
                 border-radius: 14px;
                 display:block;
+                margin: 0 auto;
             }
             .family-grid-mobile-emoji {
-                font-size: 4.2rem;
+                font-size: 6.4rem;
                 line-height: 1;
                 display:flex;
                 align-items:center;
@@ -687,15 +687,15 @@ def render_catalogo(df):
             }
             @media (max-width: 420px) {
                 .family-grid-mobile-card {
-                    min-height: 118px;
-                    padding:.22rem;
+                    min-height: 136px;
+                    padding:.01rem;
                 }
                 .family-grid-mobile-card img {
-                    max-width: 124px;
-                    max-height: 100px;
+                    width: calc(100% - 2px);
+                    height: calc(100% - 2px);
                 }
                 .family-grid-mobile-emoji {
-                    font-size: 3.7rem;
+                    font-size: 5.6rem;
                 }
             }
             </style>
