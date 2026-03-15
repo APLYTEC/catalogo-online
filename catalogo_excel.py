@@ -786,12 +786,16 @@ def render_rejilla_component(items, altura=780):
     for item in items:
         href = item["href"]
         alt = item["alt"]
+        href_js = href.replace("'", "\'")
         if item.get("img"):
             media = f'<img src="{item["img"]}" alt="{alt}">'
         else:
             fallback = item.get("fallback", "📦")
             media = f'<div class="grid-fallback">{fallback}</div>'
-        cards.append(f'<a class="grid-card" href="{href}" target="_top" aria-label="{alt}">{media}</a>')
+        cards.append(
+            f'<a class="grid-card" href="{href}" aria-label="{alt}" '
+            f'onclick="try{{window.parent.location.search='{href_js}';}}catch(e){{window.location.search='{href_js}';}} return false;">{media}</a>'
+        )
 
     html = f"""
     <!doctype html>
