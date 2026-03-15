@@ -183,9 +183,32 @@ def obtener_ruta_imagen_subfamilia_quimicos(subfamilia):
             return ruta
     return None
 
-def imagen_a_base64(ruta):
-    with open(ruta, "rb") as f:
+def _mtime_seguro(ruta):
+    try:
+        return Path(ruta).stat().st_mtime
+    except Exception:
+        return 0
+
+
+@st.cache_data(show_spinner=False)
+def imagen_a_base64_cacheada(ruta_str, mtime):
+    with open(ruta_str, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
+
+
+def imagen_a_base64(ruta):
+    ruta = Path(ruta)
+    return imagen_a_base64_cacheada(str(ruta), _mtime_seguro(ruta))
+
+
+def imagen_data_uri(ruta):
+    if not ruta:
+        return None
+    ruta = Path(ruta)
+    ext = ruta.suffix.lower().replace('.', '') or 'png'
+    if ext == 'jpg':
+        ext = 'jpeg'
+    return f"data:image/{ext};base64,{imagen_a_base64(ruta)}"
 
 
 def agregar_o_sumar_al_carrito(codigo, nombre, tipo, precio_con_iva, cantidad=1):
@@ -283,11 +306,12 @@ def render_boton_carrito_flotante():
     )
 
 
+@st.cache_data(show_spinner=False)
 def obtener_logo_src():
     if LOGO_LOCAL.exists():
-        return f"data:image/png;base64,{imagen_a_base64(LOGO_LOCAL)}"
+        return imagen_data_uri(LOGO_LOCAL)
     if Path("images.png").exists():
-        return f"data:image/png;base64,{imagen_a_base64(Path('images.png'))}"
+        return imagen_data_uri(Path("images.png"))
     return LOGO_FALLBACK
 
 
@@ -671,6 +695,44 @@ def render_carrito():
             st.rerun()
 
 
+
+@st.cache_data(show_spinner=False)
+def construir_html_familias():
+    html_cards = ['<div class="family-grid-mobile">']
+    for familia, _fam_id, icono in FAMILIAS_ORDENADAS:
+        img = obtener_ruta_imagen_familia(familia)
+        href = f"?familia={quote(familia)}"
+        if img:
+            img_html = f'<img src="{imagen_data_uri(img)}" alt="{familia}">'
+        else:
+            img_html = f'<div class="family-grid-mobile-emoji">{icono}</div>'
+        html_cards.append(f'<a href="{href}"><div class="family-grid-mobile-card">{img_html}</div></a>')
+    html_cards.append('</div>')
+    return ''.join(html_cards)
+
+
+@st.cache_data(show_spinner=False)
+def construir_html_subfamilias_quimicos(familia_actual):
+    html_cards = ['<div class="sub-grid-mobile">']
+    for subfamilia, _archivo in QUIMICOS_SUBFAMILIAS_ORDENADAS:
+        href = f"?familia={quote(familia_actual)}&subfamilia={quote(subfamilia)}"
+        img = obtener_ruta_imagen_subfamilia_quimicos(subfamilia)
+        if img:
+            contenido = f'<img src="{imagen_data_uri(img)}" alt="{subfamilia}">'
+        else:
+            contenido = f'<div class="sub-grid-mobile-fallback">{subfamilia}</div>'
+        html_cards.append(f'<a href="{href}"><div class="sub-grid-mobile-card">{contenido}</div></a>')
+    html_cards.append('</div>')
+    return ''.join(html_cards)
+
+
+def construir_mapa_cantidades_carrito():
+    cantidades = {}
+    for item in st.session_state.carrito:
+        clave = (str(item["Código"]), str(item["Tipo"]))
+        cantidades[clave] = cantidades.get(clave, 0) + int(item["Cantidad"])
+    return cantidades
+
 def render_catalogo(df):
     if st.session_state.familia_actual is None:
         st.markdown("## Familias")
@@ -736,19 +798,9 @@ def render_catalogo(df):
             unsafe_allow_html=True,
         )
 
-        html_cards = ['<div class="family-grid-mobile">']
-        for familia, _fam_id, icono in FAMILIAS_ORDENADAS:
-            img = obtener_ruta_imagen_familia(familia)
-            href = f"?familia={quote(familia)}"
-            if img:
-                img_html = f'<img src="data:image/png;base64,{imagen_a_base64(img)}" alt="{familia}">'
-            else:
-                img_html = f'<div class="family-grid-mobile-emoji">{icono}</div>'
-            html_cards.append(
-                f'<a href="{href}"><div class="family-grid-mobile-card">{img_html}</div></a>'
-            )
-        html_cards.append('</div>')
-        st.markdown("".join(html_cards), unsafe_allow_html=True)
+        st.markdown(construir_html_familias(), unsafe_allow_html=True)
+
+        cantidades_carrito = construir_mapa_cantidades_carrito()
 
         with st.expander("🔎 Buscar producto por nombre o código"):
 
@@ -791,7 +843,7 @@ def render_catalogo(df):
                             label_visibility="collapsed",
                         )
 
-                        qty_actual = cantidad_en_carrito(fila["Código"], tipo)
+                        qty_actual = cantidades_carrito.get((str(fila["Código"]), str(tipo)), 0)
                         a1, a2, a3, a4 = st.columns([1, 1, 1.3, 1.5])
                         with a1:
                             if st.button("-1", key=f"menos_busq_{fila['Código']}_{tipo}", use_container_width=True):
@@ -877,17 +929,7 @@ def render_catalogo(df):
                     """,
                     unsafe_allow_html=True,
                 )
-                html_cards = ['<div class="sub-grid-mobile">']
-                for subfamilia, _archivo in QUIMICOS_SUBFAMILIAS_ORDENADAS:
-                    href = f"?familia={quote(familia_actual)}&subfamilia={quote(subfamilia)}"
-                    img = obtener_ruta_imagen_subfamilia_quimicos(subfamilia)
-                    if img:
-                        contenido = f'<img src="data:image/png;base64,{imagen_a_base64(img)}" alt="{subfamilia}">'
-                    else:
-                        contenido = f'<div class="sub-grid-mobile-fallback">{subfamilia}</div>'
-                    html_cards.append(f'<a href="{href}"><div class="sub-grid-mobile-card">{contenido}</div></a>')
-                html_cards.append('</div>')
-                st.markdown("".join(html_cards), unsafe_allow_html=True)
+                st.markdown(construir_html_subfamilias_quimicos(familia_actual), unsafe_allow_html=True)
                 return
             subfamilias = (
                 df[df["Familia"] == familia_actual]["Subfamilia"]
@@ -929,6 +971,8 @@ def render_catalogo(df):
 
     render_aply(APLY_SENALA, "Pulsa +1 o Añadir 5 para meter productos en tu pedido.", altura=190)
 
+    cantidades_carrito = construir_mapa_cantidades_carrito()
+
     for _, fila in productos.iterrows():
         st.markdown("---")
         c1, c2 = st.columns([1, 2])
@@ -958,7 +1002,7 @@ def render_catalogo(df):
                 label_visibility="collapsed",
             )
 
-            qty_actual = cantidad_en_carrito(fila["Código"], tipo)
+            qty_actual = cantidades_carrito.get((str(fila["Código"]), str(tipo)), 0)
             a1, a2, a3, a4 = st.columns([1, 1, 1.3, 1.5])
             with a1:
                 if st.button("-1", key=f"menos_{fila['Código']}_{tipo}", use_container_width=True):
