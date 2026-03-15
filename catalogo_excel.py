@@ -259,51 +259,51 @@ def total_importe_carrito():
 def render_boton_carrito_flotante():
     total_items = total_items_carrito()
     total_importe = total_importe_carrito()
+
     st.markdown(
-        f"""
+        """
         <style>
-        .aply-float-cart {{
+        .aply-cart-fixed-slot {
             position: fixed;
-            top: 4.35rem;
-            right: 0.85rem;
-            z-index: 999999;
-            background: linear-gradient(135deg, #355e2b 0%, #4f8a3d 100%);
-            color: #ffffff !important;
+            top: 4.2rem;
+            right: 0.7rem;
+            z-index: 99999;
+            width: 165px;
+        }
+        .aply-cart-fixed-slot div[data-testid="stButton"] > button {
+            width: 100%;
             border-radius: 999px;
-            padding: 0.72rem 1rem;
-            box-shadow: 0 12px 26px rgba(53,94,43,.28);
-            text-decoration: none !important;
-            font-weight: 800;
-            display: inline-flex;
-            align-items: center;
-            gap: .45rem;
+            background: linear-gradient(135deg, #355e2b 0%, #4f8a3d 100%);
+            color: white;
             border: 1px solid rgba(255,255,255,.18);
-        }}
-        .aply-float-cart:hover, .aply-float-cart:visited, .aply-float-cart:active {{
-            color: #ffffff !important;
-            text-decoration: none !important;
-        }}
-        .aply-float-cart small {{
-            opacity: .95;
-            font-weight: 700;
-        }}
-        @media (max-width: 768px) {{
-            .aply-float-cart {{
-                top: 4.1rem;
+            box-shadow: 0 12px 26px rgba(53,94,43,.28);
+            font-weight: 800;
+            padding: .55rem .8rem;
+        }
+        .aply-cart-fixed-slot div[data-testid="stButton"] > button p {
+            color: white;
+            font-weight: 800;
+        }
+        @media (max-width: 768px) {
+            .aply-cart-fixed-slot {
+                top: 4.0rem;
                 right: 0.55rem;
-                padding: 0.62rem 0.85rem;
-                font-size: 0.90rem;
-            }}
-        }}
+                width: 150px;
+            }
+            .aply-cart-fixed-slot div[data-testid="stButton"] > button {
+                padding: .5rem .7rem;
+                font-size: .90rem;
+            }
+        }
         </style>
-        <a class="aply-float-cart" href="?pantalla=carrito">
-            <span>🛒</span>
-            <span>{total_importe:.2f} €</span>
-            <small>({total_items})</small>
-        </a>
         """,
         unsafe_allow_html=True,
     )
+    st.markdown('<div class="aply-cart-fixed-slot">', unsafe_allow_html=True)
+    if st.button(f"🛒 {total_importe:.2f} € ({total_items})", key="floating_cart_btn", use_container_width=True, type="secondary"):
+        ir_a_carrito()
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 @st.cache_data(show_spinner=False)
@@ -696,34 +696,37 @@ def render_carrito():
 
 
 
-@st.cache_data(show_spinner=False)
-def construir_html_familias():
-    html_cards = ['<div class="family-grid-mobile">']
-    for familia, _fam_id, icono in FAMILIAS_ORDENADAS:
-        img = obtener_ruta_imagen_familia(familia)
-        href = f"?familia={quote(familia)}"
-        if img:
-            img_html = f'<img src="{imagen_data_uri(img)}" alt="{familia}">'
-        else:
-            img_html = f'<div class="family-grid-mobile-emoji">{icono}</div>'
-        html_cards.append(f'<a href="{href}"><div class="family-grid-mobile-card">{img_html}</div></a>')
-    html_cards.append('</div>')
-    return ''.join(html_cards)
+def render_rejilla_familias():
+    for fila in range(0, len(FAMILIAS_ORDENADAS), 2):
+        cols = st.columns(2, gap="small")
+        for idx, (familia, _fam_id, icono) in enumerate(FAMILIAS_ORDENADAS[fila:fila+2]):
+            with cols[idx]:
+                img = obtener_ruta_imagen_familia(familia)
+                if img and img.exists():
+                    st.image(str(img), use_container_width=True)
+                else:
+                    st.markdown(f"<div style='font-size:5rem;text-align:center;line-height:1.1'>{icono}</div>", unsafe_allow_html=True)
+                if st.button("Abrir", key=f"familia_btn_{familia}", use_container_width=True):
+                    seleccionar_familia(familia)
+                    st.rerun()
 
 
-@st.cache_data(show_spinner=False)
-def construir_html_subfamilias_quimicos(familia_actual):
-    html_cards = ['<div class="sub-grid-mobile">']
-    for subfamilia, _archivo in QUIMICOS_SUBFAMILIAS_ORDENADAS:
-        href = f"?familia={quote(familia_actual)}&subfamilia={quote(subfamilia)}"
-        img = obtener_ruta_imagen_subfamilia_quimicos(subfamilia)
-        if img:
-            contenido = f'<img src="{imagen_data_uri(img)}" alt="{subfamilia}">'
-        else:
-            contenido = f'<div class="sub-grid-mobile-fallback">{subfamilia}</div>'
-        html_cards.append(f'<a href="{href}"><div class="sub-grid-mobile-card">{contenido}</div></a>')
-    html_cards.append('</div>')
-    return ''.join(html_cards)
+def render_rejilla_subfamilias_quimicos(familia_actual):
+    for fila in range(0, len(QUIMICOS_SUBFAMILIAS_ORDENADAS), 2):
+        cols = st.columns(2, gap="small")
+        for idx, (subfamilia, _archivo) in enumerate(QUIMICOS_SUBFAMILIAS_ORDENADAS[fila:fila+2]):
+            with cols[idx]:
+                img = obtener_ruta_imagen_subfamilia_quimicos(subfamilia)
+                if img and img.exists():
+                    st.image(str(img), use_container_width=True)
+                else:
+                    st.markdown(f"<div style='font-size:1.05rem;text-align:center;font-weight:700;line-height:1.2;padding:2.2rem .4rem'>{subfamilia}</div>", unsafe_allow_html=True)
+                if st.button("Abrir", key=f"subq_btn_{subfamilia}", use_container_width=True):
+                    st.session_state.subfamilia_actual = subfamilia
+                    st.session_state.pantalla_actual = "catalogo"
+                    st.query_params["familia"] = familia_actual
+                    st.query_params["subfamilia"] = subfamilia
+                    st.rerun()
 
 
 def construir_mapa_cantidades_carrito():
@@ -738,67 +741,7 @@ def render_catalogo(df):
         st.markdown("## Familias")
         st.caption("Toca una familia para ver los productos")
 
-        st.markdown(
-            """
-            <style>
-            .family-grid-mobile {
-                display:grid;
-                grid-template-columns: repeat(2, minmax(0,1fr));
-                gap: .55rem;
-                margin-top: .35rem;
-            }
-            .family-grid-mobile a {
-                text-decoration:none !important;
-            }
-            .family-grid-mobile-card {
-                background: linear-gradient(180deg,#ffffff 0%,#f6faf5 100%);
-                border:1px solid #d9ead3;
-                border-radius:16px;
-                padding:.02rem;
-                text-align:center;
-                min-height: 146px;
-                box-shadow: 0 6px 16px rgba(0,0,0,.06);
-                display:flex;
-                justify-content:center;
-                align-items:center;
-                overflow:hidden;
-            }
-            .family-grid-mobile-card img {
-                width: calc(100% - 2px);
-                height: calc(100% - 2px);
-                object-fit: contain;
-                border-radius: 14px;
-                display:block;
-                margin: 0 auto;
-            }
-            .family-grid-mobile-emoji {
-                font-size: 6.4rem;
-                line-height: 1;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                width:100%;
-                height:100%;
-            }
-            @media (max-width: 420px) {
-                .family-grid-mobile-card {
-                    min-height: 136px;
-                    padding:.01rem;
-                }
-                .family-grid-mobile-card img {
-                    width: calc(100% - 2px);
-                    height: calc(100% - 2px);
-                }
-                .family-grid-mobile-emoji {
-                    font-size: 5.6rem;
-                }
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.markdown(construir_html_familias(), unsafe_allow_html=True)
+        render_rejilla_familias()
 
         cantidades_carrito = construir_mapa_cantidades_carrito()
 
@@ -876,60 +819,7 @@ def render_catalogo(df):
             render_aply(APLY_SENALA, "Elige una subfamilia para ver los productos.", altura=190)
             if familia_actual == "Químicos":
                 st.markdown("### Selecciona una subfamilia")
-                st.markdown(
-                    """
-                    <style>
-                    .sub-grid-mobile {
-                        display:grid;
-                        grid-template-columns: repeat(2, minmax(0,1fr));
-                        gap: .55rem;
-                        margin-top: .35rem;
-                    }
-                    .sub-grid-mobile a {
-                        text-decoration:none !important;
-                    }
-                    .sub-grid-mobile-card {
-                        background: linear-gradient(180deg,#ffffff 0%,#f6faf5 100%);
-                        border:1px solid #d9ead3;
-                        border-radius:16px;
-                        padding:.02rem;
-                        text-align:center;
-                        min-height: 146px;
-                        box-shadow: 0 6px 16px rgba(0,0,0,.06);
-                        display:flex;
-                        justify-content:center;
-                        align-items:center;
-                        overflow:hidden;
-                    }
-                    .sub-grid-mobile-card img {
-                        width: calc(100% - 2px);
-                        height: calc(100% - 2px);
-                        object-fit: contain;
-                        border-radius: 14px;
-                        display:block;
-                        margin: 0 auto;
-                    }
-                    .sub-grid-mobile-fallback {
-                        font-size: 1.15rem;
-                        font-weight: 700;
-                        color: #355e2b;
-                        padding: .6rem;
-                    }
-                    @media (max-width: 420px) {
-                        .sub-grid-mobile-card {
-                            min-height: 136px;
-                            padding:.01rem;
-                        }
-                        .sub-grid-mobile-card img {
-                            width: calc(100% - 2px);
-                            height: calc(100% - 2px);
-                        }
-                    }
-                    </style>
-                    """,
-                    unsafe_allow_html=True,
-                )
-                st.markdown(construir_html_subfamilias_quimicos(familia_actual), unsafe_allow_html=True)
+                render_rejilla_subfamilias_quimicos(familia_actual)
                 return
             subfamilias = (
                 df[df["Familia"] == familia_actual]["Subfamilia"]
