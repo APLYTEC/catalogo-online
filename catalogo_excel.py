@@ -4,6 +4,7 @@ import pandas as pd
 import smtplib
 import ssl
 import base64
+import json
 from urllib.parse import quote
 from email.message import EmailMessage
 from fpdf import FPDF
@@ -211,6 +212,67 @@ def imagen_data_uri(ruta):
     return f"data:image/{ext};base64,{imagen_a_base64(ruta)}"
 
 
+def serializar_carrito_para_qp():
+    try:
+        data = [{
+            "id": int(item.get("id", 0)),
+            "Código": str(item.get("Código", "")),
+            "Nombre": str(item.get("Nombre", "")),
+            "Cantidad": int(item.get("Cantidad", 0)),
+            "Tipo": str(item.get("Tipo", "")),
+            "PrecioUnitario": float(item.get("PrecioUnitario", 0.0)),
+        } for item in st.session_state.carrito]
+        return quote(json.dumps(data, ensure_ascii=False, separators=(",", ":")), safe="")
+    except Exception:
+        return ""
+
+
+def restaurar_carrito_desde_qp(valor):
+    if not valor:
+        return []
+    try:
+        data = json.loads(valor)
+        carrito = []
+        for item in data:
+            carrito.append({
+                "id": int(item.get("id", 0)),
+                "Código": str(item.get("Código", "")),
+                "Nombre": str(item.get("Nombre", "")),
+                "Cantidad": int(item.get("Cantidad", 0)),
+                "Tipo": str(item.get("Tipo", "")),
+                "PrecioUnitario": float(item.get("PrecioUnitario", 0.0)),
+            })
+        return carrito
+    except Exception:
+        return []
+
+
+def sync_query_params():
+    params = {"pantalla": st.session_state.pantalla_actual}
+    if st.session_state.familia_actual:
+        params["familia"] = st.session_state.familia_actual
+    if st.session_state.subfamilia_actual:
+        params["subfamilia"] = st.session_state.subfamilia_actual
+    cart = serializar_carrito_para_qp()
+    if cart:
+        params["cart"] = cart
+    st.query_params.clear()
+    st.query_params.update(params)
+
+
+def qp_url(pantalla=None, familia=None, subfamilia=None):
+    pantalla = pantalla or st.session_state.pantalla_actual or "catalogo"
+    parts = [f"pantalla={quote(str(pantalla), safe='')}"]
+    if familia:
+        parts.append(f"familia={quote(str(familia), safe='')}")
+    if subfamilia:
+        parts.append(f"subfamilia={quote(str(subfamilia), safe='')}")
+    cart = serializar_carrito_para_qp()
+    if cart:
+        parts.append(f"cart={cart}")
+    return "?" + "&".join(parts)
+
+
 def agregar_o_sumar_al_carrito(codigo, nombre, tipo, precio_con_iva, cantidad=1):
     existente = None
     for item in st.session_state.carrito:
@@ -229,6 +291,7 @@ def agregar_o_sumar_al_carrito(codigo, nombre, tipo, precio_con_iva, cantidad=1)
             "PrecioUnitario": float(precio_con_iva)
         })
         st.session_state.next_cart_id += 1
+    sync_query_params()
 
 
 def cantidad_en_carrito(codigo, tipo):
@@ -245,7 +308,9 @@ def quitar_del_carrito(codigo, tipo, cantidad=1):
             item["Cantidad"] -= int(cantidad)
             if item["Cantidad"] <= 0:
                 st.session_state.carrito.pop(i)
+            sync_query_params()
             return
+    sync_query_params()
 
 
 def total_items_carrito():
@@ -259,51 +324,42 @@ def total_importe_carrito():
 def render_boton_carrito_flotante():
     total_items = total_items_carrito()
     total_importe = total_importe_carrito()
+    href = qp_url(pantalla="carrito")
 
     st.markdown(
-        """
+        f"""
         <style>
-        .aply-cart-fixed-slot {
+        .aply-cart-floating-link {{
             position: fixed;
-            top: 4.2rem;
-            right: 0.7rem;
+            top: 4.15rem;
+            right: 0.65rem;
             z-index: 99999;
-            width: 165px;
-        }
-        .aply-cart-fixed-slot div[data-testid="stButton"] > button {
-            width: 100%;
-            border-radius: 999px;
+            width: 170px;
+            text-decoration:none !important;
+        }}
+        .aply-cart-floating-chip {{
+            width:100%;
+            border-radius:999px;
             background: linear-gradient(135deg, #355e2b 0%, #4f8a3d 100%);
             color: white;
             border: 1px solid rgba(255,255,255,.18);
             box-shadow: 0 12px 26px rgba(53,94,43,.28);
             font-weight: 800;
-            padding: .55rem .8rem;
-        }
-        .aply-cart-fixed-slot div[data-testid="stButton"] > button p {
-            color: white;
-            font-weight: 800;
-        }
-        @media (max-width: 768px) {
-            .aply-cart-fixed-slot {
-                top: 4.0rem;
-                right: 0.55rem;
-                width: 150px;
-            }
-            .aply-cart-fixed-slot div[data-testid="stButton"] > button {
-                padding: .5rem .7rem;
-                font-size: .90rem;
-            }
-        }
+            padding: .72rem .85rem;
+            text-align:center;
+            line-height:1.1;
+        }}
+        @media (max-width: 768px) {{
+            .aply-cart-floating-link {{ top: 4.0rem; right: 0.5rem; width: 150px; }}
+            .aply-cart-floating-chip {{ padding: .62rem .72rem; font-size: .92rem; }}
+        }}
         </style>
+        <a class="aply-cart-floating-link" href="{href}">
+            <div class="aply-cart-floating-chip">🛒 {total_importe:.2f} € ({total_items})</div>
+        </a>
         """,
         unsafe_allow_html=True,
     )
-    st.markdown('<div class="aply-cart-fixed-slot">', unsafe_allow_html=True)
-    if st.button(f"🛒 {total_importe:.2f} € ({total_items})", key="floating_cart_btn", use_container_width=True, type="secondary"):
-        ir_a_carrito()
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 
 
 @st.cache_data(show_spinner=False)
@@ -336,34 +392,41 @@ def ir_a_inicio():
     st.session_state.pantalla_actual = "inicio"
     st.session_state.familia_actual = None
     st.session_state.subfamilia_actual = None
+    sync_query_params()
 
 
 def ir_a_catalogo():
     st.session_state.pantalla_actual = "catalogo"
+    sync_query_params()
 
 
 def seleccionar_familia(familia):
     st.session_state.familia_actual = familia
     st.session_state.subfamilia_actual = None
     st.session_state.pantalla_actual = "catalogo"
+    sync_query_params()
 
 
 def ir_a_contacto():
     st.session_state.pantalla_actual = "contacto"
+    sync_query_params()
 
 
 def ir_a_carrito():
     st.session_state.pantalla_actual = "carrito"
+    sync_query_params()
 
 
 def volver_a_familias():
     st.session_state.pantalla_actual = "catalogo"
     st.session_state.familia_actual = None
     st.session_state.subfamilia_actual = None
+    sync_query_params()
 
 
 def volver_a_subfamilias():
     st.session_state.subfamilia_actual = None
+    sync_query_params()
 
 
 def render_menu_superior():
@@ -702,117 +765,52 @@ def inyectar_css_tarjetas_rejilla():
     st.markdown(
         """
         <style>
-        .aply-grid-row-marker {height:0; margin:0; padding:0;}
-        .aply-grid-card {
-            background: linear-gradient(180deg,#ffffff 0%,#f6faf5 100%);
-            border:1px solid #d9ead3;
-            border-radius:18px;
-            padding:.08rem;
-            min-height: 138px;
-            box-shadow: 0 6px 16px rgba(0,0,0,.06);
-            overflow:hidden;
-        }
-        .aply-grid-card .stImage {
-            margin-bottom: 0 !important;
-        }
-        .aply-grid-card [data-testid="stImage"] img {
-            width: calc(100% - 2px);
-            height: auto;
-            min-height: 116px;
-            max-height: 154px;
-            object-fit: contain;
-            display:block;
-            margin: 0 auto;
-            border-radius: 16px 16px 0 0;
-        }
-        .aply-grid-card-emoji {
-            min-height: 116px;
-            max-height: 154px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            font-size: 5.9rem;
-            line-height: 1;
-        }
-        .aply-grid-card div[data-testid="stButton"] {
-            margin-top: -0.48rem;
-        }
-        .aply-grid-card div[data-testid="stButton"] > button {
-            width:100%;
-            min-height: 1.15rem;
-            padding:.14rem 0 .22rem 0;
-            border-radius:0 0 18px 18px;
-            border:1px solid #d9ead3;
-            border-top:none;
-            background: linear-gradient(180deg,#ffffff 0%,#f6faf5 100%);
-            box-shadow:none;
-        }
-        .aply-grid-card div[data-testid="stButton"] > button p {
-            font-size:0 !important;
-            color:transparent !important;
-            line-height:0 !important;
-            margin:0 !important;
-        }
-        .aply-grid-card div[data-testid="stButton"] > button:hover {
-            border-color:#cde2c5;
-            background: linear-gradient(180deg,#ffffff 0%,#eef7eb 100%);
-        }
+        .aply-grid-html {display:grid;grid-template-columns:1fr 1fr;gap:.7rem;margin:.25rem 0 1rem 0;}
+        .aply-grid-card-link {text-decoration:none !important;color:inherit !important;}
+        .aply-grid-card-box {background:#fff;border:1px solid #e6efe2;border-radius:22px;padding:.22rem;box-shadow:0 7px 18px rgba(0,0,0,.07);overflow:hidden;}
+        .aply-grid-card-box img {display:block;width:100%;height:auto;border-radius:18px;}
+        .aply-grid-card-fallback {display:flex;align-items:center;justify-content:center;min-height:132px;font-size:3.1rem;background:linear-gradient(135deg,#f8fbf8,#eef7eb);border-radius:18px;}
         @media (max-width: 768px) {
-            .aply-grid-row-marker + div[data-testid="stHorizontalBlock"] {
-                display: flex !important;
-                flex-wrap: nowrap !important;
-                gap: .45rem !important;
-                align-items: stretch !important;
-            }
-            .aply-grid-row-marker + div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-                width: 50% !important;
-                min-width: 0 !important;
-                flex: 1 1 0 !important;
-            }
-            .aply-grid-card {
-                min-height: 124px;
-                border-radius:16px;
-            }
-            .aply-grid-card [data-testid="stImage"] img {
-                min-height: 104px;
-                max-height: 132px;
-                border-radius: 14px 14px 0 0;
-            }
-            .aply-grid-card-emoji {
-                min-height: 104px;
-                max-height: 132px;
-                font-size: 5.1rem;
-            }
-            .aply-grid-card div[data-testid="stButton"] {
-                margin-top: -0.42rem;
-            }
-            .aply-grid-card div[data-testid="stButton"] > button {
-                min-height: 1.05rem;
-                padding:.10rem 0 .18rem 0;
-                border-radius:0 0 16px 16px;
-            }
-        }
-        @media (max-width: 420px) {
-            .aply-grid-row-marker + div[data-testid="stHorizontalBlock"] {
-                gap: .38rem !important;
-            }
-            .aply-grid-card {
-                min-height: 116px;
-            }
-            .aply-grid-card [data-testid="stImage"] img {
-                min-height: 96px;
-                max-height: 122px;
-            }
-            .aply-grid-card-emoji {
-                min-height: 96px;
-                max-height: 122px;
-                font-size: 4.6rem;
-            }
+            .aply-grid-html {grid-template-columns:1fr 1fr !important;gap:.55rem;}
+            .aply-grid-card-box {border-radius:18px;padding:.16rem;}
+            .aply-grid-card-box img, .aply-grid-card-fallback {border-radius:15px;}
         }
         </style>
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_rejilla_familias():
+    inyectar_css_tarjetas_rejilla()
+    html = ['<div class="aply-grid-html">']
+    for familia, _fam_id, icono in FAMILIAS_ORDENADAS:
+        img = obtener_ruta_imagen_familia(familia)
+        href = qp_url(pantalla="catalogo", familia=familia)
+        html.append(f'<a class="aply-grid-card-link" href="{href}"><div class="aply-grid-card-box">')
+        if img and img.exists():
+            html.append(f'<img src="{imagen_data_uri(img)}" alt="{familia}">')
+        else:
+            html.append(f'<div class="aply-grid-card-fallback">{icono}</div>')
+        html.append('</div></a>')
+    html.append('</div>')
+    st.markdown("".join(html), unsafe_allow_html=True)
+
+
+def render_rejilla_subfamilias_quimicos():
+    inyectar_css_tarjetas_rejilla()
+    html = ['<div class="aply-grid-html">']
+    for subfamilia, _archivo in QUIMICOS_SUBFAMILIAS_ORDENADAS:
+        img = obtener_ruta_imagen_subfamilia_quimicos(subfamilia)
+        href = qp_url(pantalla="catalogo", familia="Químicos", subfamilia=subfamilia)
+        html.append(f'<a class="aply-grid-card-link" href="{href}"><div class="aply-grid-card-box">')
+        if img and img.exists():
+            html.append(f'<img src="{imagen_data_uri(img)}" alt="{subfamilia}">')
+        else:
+            html.append(f'<div class="aply-grid-card-fallback" style="font-size:1rem;font-weight:700;line-height:1.15;padding:1rem;text-align:center">{subfamilia}</div>')
+        html.append('</div></a>')
+    html.append('</div>')
+    st.markdown("".join(html), unsafe_allow_html=True)
 
 
 def render_rejilla_familias():
@@ -1049,6 +1047,12 @@ if "pantalla_actual" not in st.session_state:
     st.session_state.pantalla_actual = "inicio"
 
 qp = st.query_params
+cart_qp = qp.get("cart")
+if cart_qp:
+    carrito_qp = restaurar_carrito_desde_qp(cart_qp)
+    if carrito_qp:
+        st.session_state.carrito = carrito_qp
+        st.session_state.next_cart_id = max([int(x.get("id", 0)) for x in carrito_qp] + [0]) + 1
 if qp.get("familia"):
     st.session_state.familia_actual = qp.get("familia")
     st.session_state.pantalla_actual = "catalogo"
@@ -1060,6 +1064,7 @@ if qp.get("pantalla") in {"inicio", "catalogo", "carrito", "contacto"}:
 
 st.set_page_config(page_title="Catálogo APLYTEC", layout="wide")
 
+sync_query_params()
 df = cargar_datos()
 render_menu_superior()
 render_boton_carrito_flotante()
