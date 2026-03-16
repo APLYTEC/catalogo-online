@@ -847,25 +847,101 @@ def construir_mapa_cantidades_carrito():
     return cantidades
 
 def render_catalogo(df):
+    busqueda_global = st.text_input("🔎 Buscar producto por nombre o código", key="busqueda_global_catalogo")
+
+    if busqueda_global:
+        resultados = df[
+            df["Nombre"].str.contains(busqueda_global, case=False, na=False)
+            | df["Código"].astype(str).str.contains(busqueda_global, case=False, na=False)
+        ].copy()
+
+        st.markdown(f"### Resultados: {len(resultados)}")
+        cantidades_carrito = construir_mapa_cantidades_carrito()
+
+        for _, fila in resultados.iterrows():
+            st.markdown("---")
+            c1, c2 = st.columns([1, 2])
+
+            with c1:
+                ruta_img = obtener_ruta_imagen_producto(fila["Código"])
+                if ruta_img:
+                    st.image(ruta_img, use_container_width=True)
+                else:
+                    st.info("Sin imagen")
+
+            with c2:
+                st.markdown(f"### {fila['Nombre']}")
+                precio_con_iva = float(fila["Precio"])
+                precio_sin_iva = precio_con_iva / (1 + IVA) if precio_con_iva else 0
+                st.markdown(
+                    f"**Código:** {fila['Código']}  \n"
+                    f"**Familia:** {fila['Familia']}  \n"
+                    f"**Subfamilia:** {fila['Subfamilia']}  \n"
+                    f"💶 **Precio sin IVA:** {precio_sin_iva:.2f} €  \n"
+                    f"💰 **Precio con IVA:** {precio_con_iva:.2f} €"
+                )
+
+                tipo = st.radio(
+                    "Formato",
+                    FORMATOS,
+                    horizontal=True,
+                    key=f"tipo_busq_{fila['Código']}",
+                    label_visibility="collapsed",
+                )
+
+                qty_actual = cantidades_carrito.get((str(fila["Código"]), str(tipo)), 0)
+                a1, a2, a3, a4 = st.columns([1, 1, 1.3, 1.5])
+                with a1:
+                    if st.button("-1", key=f"menos_busq_{fila['Código']}_{tipo}", use_container_width=True):
+                        quitar_del_carrito(fila["Código"], tipo, 1)
+                        st.rerun()
+                with a2:
+                    if st.button("+1", key=f"mas_busq_{fila['Código']}_{tipo}", use_container_width=True):
+                        agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
+                        st.rerun()
+                with a3:
+                    st.markdown(f"**En carrito:** {qty_actual}")
+                with a4:
+                    if st.button("Añadir 5", key=f"add5_busq_{fila['Código']}_{tipo}", use_container_width=True):
+                        agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
+                        st.rerun()
+
     if st.session_state.familia_actual is None:
         st.markdown("## Familias")
         st.caption("Toca una familia para ver los productos")
-
         render_rejilla_familias()
+        return
 
-        cantidades_carrito = construir_mapa_cantidades_carrito()
+    familia_actual = st.session_state.familia_actual
 
-        with st.expander("🔎 Buscar producto por nombre o código"):
+    if familia_actual:
+        top1, top2 = st.columns([1, 3])
+        with top1:
+            if st.button("⬅️ Familias", use_container_width=True):
+                volver_a_familias()
+                st.rerun()
+        with top2:
+            st.markdown(f"## {familia_actual}")
 
-            busqueda_global = st.text_input("Busca por nombre o código", key="busqueda_global_catalogo")
-            if busqueda_global:
-                resultados = df[
-                    df["Nombre"].str.contains(busqueda_global, case=False, na=False)
-                    | df["Código"].astype(str).str.contains(busqueda_global, case=False, na=False)
+        if st.session_state.subfamilia_actual is None:
+            busqueda_familia = st.text_input(
+                "🔎 Buscar dentro de esta familia",
+                key=f"busqueda_familia_{familia_actual}"
+            )
+
+            if busqueda_familia:
+                productos_familia = df[
+                    (df["Familia"] == familia_actual)
+                    & (
+                        df["Nombre"].str.contains(busqueda_familia, case=False, na=False)
+                        | df["Código"].astype(str).str.contains(busqueda_familia, case=False, na=False)
+                    )
                 ].copy()
 
-                st.markdown(f"### Resultados: {len(resultados)}")
-                for _, fila in resultados.iterrows():
+                st.markdown(f"### Resultados en {familia_actual}: {len(productos_familia)}")
+                cantidades_carrito = construir_mapa_cantidades_carrito()
+
+                for _, fila in productos_familia.iterrows():
                     st.markdown("---")
                     c1, c2 = st.columns([1, 2])
 
@@ -882,7 +958,6 @@ def render_catalogo(df):
                         precio_sin_iva = precio_con_iva / (1 + IVA) if precio_con_iva else 0
                         st.markdown(
                             f"**Código:** {fila['Código']}  \n"
-                            f"**Familia:** {fila['Familia']}  \n"
                             f"**Subfamilia:** {fila['Subfamilia']}  \n"
                             f"💶 **Precio sin IVA:** {precio_sin_iva:.2f} €  \n"
                             f"💰 **Precio con IVA:** {precio_con_iva:.2f} €"
@@ -892,40 +967,27 @@ def render_catalogo(df):
                             "Formato",
                             FORMATOS,
                             horizontal=True,
-                            key=f"tipo_busq_{fila['Código']}",
+                            key=f"tipo_fam_{fila['Código']}",
                             label_visibility="collapsed",
                         )
 
                         qty_actual = cantidades_carrito.get((str(fila["Código"]), str(tipo)), 0)
                         a1, a2, a3, a4 = st.columns([1, 1, 1.3, 1.5])
                         with a1:
-                            if st.button("-1", key=f"menos_busq_{fila['Código']}_{tipo}", use_container_width=True):
+                            if st.button("-1", key=f"menos_fam_{fila['Código']}_{tipo}", use_container_width=True):
                                 quitar_del_carrito(fila["Código"], tipo, 1)
                                 st.rerun()
                         with a2:
-                            if st.button("+1", key=f"mas_busq_{fila['Código']}_{tipo}", use_container_width=True):
+                            if st.button("+1", key=f"mas_fam_{fila['Código']}_{tipo}", use_container_width=True):
                                 agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
                                 st.rerun()
                         with a3:
                             st.markdown(f"**En carrito:** {qty_actual}")
                         with a4:
-                            if st.button("Añadir 5", key=f"add5_busq_{fila['Código']}_{tipo}", use_container_width=True):
+                            if st.button("Añadir 5", key=f"add5_fam_{fila['Código']}_{tipo}", use_container_width=True):
                                 agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
                                 st.rerun()
-        return
 
-    familia_actual = st.session_state.familia_actual
-
-    if familia_actual:
-        top1, top2 = st.columns([1, 3])
-        with top1:
-            if st.button("⬅️ Familias", use_container_width=True):
-                volver_a_familias()
-                st.rerun()
-        with top2:
-            st.markdown(f"## {familia_actual}")
-
-        if st.session_state.subfamilia_actual is None:
             render_aply(APLY_SENALA, "Elige una subfamilia para ver los productos.", altura=190)
             if familia_actual == "Químicos":
                 st.markdown("### Selecciona una subfamilia")
@@ -966,6 +1028,16 @@ def render_catalogo(df):
         if st.button(f"🛒 Ver carrito ({total_items_carrito()})", key="btn_carrito_catalogo", use_container_width=True):
             ir_a_carrito()
             st.rerun()
+
+    busqueda_subfamilia = st.text_input(
+        "🔎 Buscar dentro de esta subfamilia",
+        key=f"busqueda_subfamilia_{familia_actual}_{subfamilia_actual}"
+    )
+    if busqueda_subfamilia:
+        productos = productos[
+            productos["Nombre"].str.contains(busqueda_subfamilia, case=False, na=False)
+            | productos["Código"].astype(str).str.contains(busqueda_subfamilia, case=False, na=False)
+        ].copy()
 
     render_aply(APLY_SENALA, "Pulsa +1 o Añadir 5 para meter productos en tu pedido.", altura=190)
 
