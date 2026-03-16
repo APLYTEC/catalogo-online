@@ -813,6 +813,32 @@ def render_rejilla_component(items):
     st.markdown(html_block, unsafe_allow_html=True)
 
 
+def render_rejilla_familias():
+    items = []
+    for familia, _fam_id, icono in FAMILIAS_ORDENADAS:
+        img = obtener_ruta_imagen_familia(familia)
+        items.append({
+            "href": qp_url(pantalla="catalogo", familia=familia),
+            "alt": familia,
+            "img": imagen_data_uri(img) if img and img.exists() else None,
+            "fallback": icono,
+        })
+    render_rejilla_component(items)
+
+
+def render_rejilla_subfamilias_quimicos():
+    items = []
+    for subfamilia, _archivo in QUIMICOS_SUBFAMILIAS_ORDENADAS:
+        img = obtener_ruta_imagen_subfamilia_quimicos(subfamilia)
+        items.append({
+            "href": qp_url(pantalla="catalogo", familia="Químicos", subfamilia=subfamilia),
+            "alt": subfamilia,
+            "img": imagen_data_uri(img) if img and img.exists() else None,
+            "fallback": subfamilia,
+        })
+    render_rejilla_component(items)
+
+
 def construir_mapa_cantidades_carrito():
     cantidades = {}
     for item in st.session_state.carrito:
