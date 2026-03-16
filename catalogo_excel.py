@@ -781,96 +781,36 @@ def inyectar_css_tarjetas_rejilla():
     )
 
 
-def render_rejilla_component(items, altura=780):
+def render_rejilla_component(items):
     import html
-    cards = []
-    for item in items:
-        href = item["href"]
-        alt = item["alt"]
-        alt_attr = html.escape(alt, quote=True)
-        href_attr = html.escape(href, quote=True)
-        if item.get("img"):
-            media = f'<img src="{item["img"]}" alt="{alt_attr}">'
-        else:
-            fallback = html.escape(str(item.get("fallback", "📦")))
-            media = f'<div class="grid-fallback">{fallback}</div>'
-        cards.append(
-            f'<a class="grid-card" href="{href_attr}" target="_top" aria-label="{alt_attr}">{media}</a>'
-        )
+    rows = []
+    for i in range(0, len(items), 2):
+        pares = items[i:i+2]
+        celdas = []
+        for item in pares:
+            href = html.escape(item["href"], quote=True)
+            alt = html.escape(item["alt"], quote=True)
+            if item.get("img"):
+                media = f'<img src="{item["img"]}" alt="{alt}">'
+            else:
+                fallback = html.escape(str(item.get("fallback", "📦")))
+                media = f'<div class="aply-grid-card-fallback">{fallback}</div>'
+            celdas.append(
+                f'<td style="width:50%; padding:0 5px 10px 5px; vertical-align:top;">'
+                f'<a class="aply-grid-card-link" href="{href}">'
+                f'<div class="aply-grid-card-box">{media}</div>'
+                f'</a></td>'
+            )
+        if len(celdas) == 1:
+            celdas.append('<td style="width:50%; padding:0 5px 10px 5px;"></td>')
+        rows.append('<tr>' + ''.join(celdas) + '</tr>')
 
-    html = f"""
-    <!doctype html>
-    <html>
-    <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-      html, body {{ margin:0; padding:0; background:transparent; overflow:hidden; }}
-      .grid-wrap {{
-        display:grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        padding: 2px 2px 8px 2px;
-        box-sizing:border-box;
-      }}
-      .grid-card {{
-        display:block;
-        text-decoration:none;
-        background:#fff;
-        border:1px solid #e6efe2;
-        border-radius:20px;
-        padding:3px;
-        box-shadow:0 7px 18px rgba(0,0,0,.08);
-        overflow:hidden;
-        min-height: 120px;
-        cursor:pointer;
-      }}
-      .grid-card img {{
-        display:block;
-        width:100%;
-        height:auto;
-        border-radius:17px;
-      }}
-      .grid-fallback {{
-        display:flex; align-items:center; justify-content:center;
-        min-height:120px;
-        border-radius:17px;
-        background:linear-gradient(135deg,#f8fbf8,#eef7eb);
-        font-size:3rem;
-      }}
-    </style>
-    </head>
-    <body>
-      <div class="grid-wrap">{''.join(cards)}</div>
-    </body>
-    </html>
-    """
-    components.html(html, height=altura, scrolling=False)
-
-
-def render_rejilla_familias():
-    items = []
-    for familia, _fam_id, icono in FAMILIAS_ORDENADAS:
-        img = obtener_ruta_imagen_familia(familia)
-        items.append({
-            "href": qp_url(pantalla="catalogo", familia=familia),
-            "alt": familia,
-            "img": imagen_data_uri(img) if img and img.exists() else None,
-            "fallback": icono,
-        })
-    render_rejilla_component(items, altura=720)
-
-
-def render_rejilla_subfamilias_quimicos():
-    items = []
-    for subfamilia, _archivo in QUIMICOS_SUBFAMILIAS_ORDENADAS:
-        img = obtener_ruta_imagen_subfamilia_quimicos(subfamilia)
-        items.append({
-            "href": qp_url(pantalla="catalogo", familia="Químicos", subfamilia=subfamilia),
-            "alt": subfamilia,
-            "img": imagen_data_uri(img) if img and img.exists() else None,
-            "fallback": subfamilia,
-        })
-    render_rejilla_component(items, altura=720)
+    html_block = (
+        '<table style="width:100%; table-layout:fixed; border-collapse:collapse; margin:0 0 .8rem 0;">'
+        + ''.join(rows)
+        + '</table>'
+    )
+    st.markdown(html_block, unsafe_allow_html=True)
 
 
 def construir_mapa_cantidades_carrito():
