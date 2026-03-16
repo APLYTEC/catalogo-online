@@ -430,6 +430,7 @@ def volver_a_subfamilias():
 
 
 def render_menu_superior():
+    total = total_items_carrito()
     st.markdown(
         """
         <style>
@@ -491,6 +492,15 @@ def render_menu_superior():
             padding:1.25rem;
             box-shadow: 0 8px 20px rgba(0,0,0,.05);
         }
+        .cta-band {
+            background:#355e2b;
+            color:white;
+            border-radius:22px;
+            padding:1.2rem 1.2rem;
+            box-shadow: 0 12px 26px rgba(53,94,43,.22);
+        }
+        .cta-band p, .cta-band h3 {color:white; margin:0;}
+        .topbar-btn button {height: 48px; font-weight: 700;}
         @media (max-width: 900px) {
             .hero-mini-grid {grid-template-columns: 1fr;}
         }
@@ -499,12 +509,27 @@ def render_menu_superior():
         unsafe_allow_html=True,
     )
 
+    b1, b2, b3, b4 = st.columns([1.1, 1.1, 1.1, 1.2])
+    with b1:
+        if st.button("🏠 Inicio", use_container_width=True, key="top_inicio"):
+            ir_a_inicio()
+            st.rerun()
+    with b2:
+        if st.button("📦 Ver productos", use_container_width=True, key="top_productos"):
+            ir_a_catalogo()
+            st.rerun()
+    with b3:
+        if st.button(f"🛒 Mi carrito ({total})", use_container_width=True, key="top_carrito"):
+            ir_a_carrito()
+            st.rerun()
+    with b4:
+        st.link_button("💬 WhatsApp", WHATSAPP_LINK, use_container_width=True)
+
+    st.markdown("<div style='margin-top:0.3rem'></div>", unsafe_allow_html=True)
+
 
 def render_inicio():
     logo_src = obtener_logo_src()
-
-    render_aply(APLY_SALUDA, "Hola, soy Aply. Entra al catálogo y prepara tu pedido en pocos pasos.", altura=280)
-    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
 
     st.markdown(
         f"""
@@ -524,39 +549,85 @@ def render_inicio():
     )
 
     st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
-    st.markdown(
-        """
-        <div class='contact-card'>
-            <h3 style='margin-top:0;'>Pedido rápido desde tu móvil</h3>
-            <p style='margin-bottom:0.45rem;'>Explora las familias, añade productos al carrito y envía tu pedido de forma cómoda, clara y sin llamadas innecesarias.</p>
-            <p style='margin-bottom:0;'><strong>WhatsApp:</strong> +34 647 93 63 56</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    render_aply(APLY_SALUDA, "Hola, soy Aply. Entra al catálogo y prepara tu pedido en pocos pasos.", altura=280)
+
+    st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if st.button("📦 Ver productos", use_container_width=True, key="inicio_productos"):
+            ir_a_catalogo()
+            st.rerun()
+    with c2:
+        if st.button(f"🛒 Mi carrito ({total_items_carrito()})", use_container_width=True, key="inicio_carrito"):
+            ir_a_carrito()
+            st.rerun()
+    with c3:
+        if st.button("📞 Contacto", use_container_width=True, key="inicio_contacto"):
+            ir_a_contacto()
+            st.rerun()
+
+    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
+    cta1, cta2 = st.columns([1.8, 1.2])
+    with cta1:
+        st.markdown(
+            """
+            <div class='cta-band'>
+                <h3>Escanea, entra y pide</h3>
+                <p style='margin-top:.35rem;'>Ideal para panfletos y clientes: acceso directo al catálogo, navegación fácil y contacto inmediato.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with cta2:
+        st.link_button("💬 Pedir por WhatsApp", WHATSAPP_LINK, use_container_width=True)
+
+    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
+    w1, w2 = st.columns([2, 1])
+    with w1:
+        st.markdown(
+            """
+            <div class='contact-card'>
+                <h3 style='margin-top:0;'>Pedido rápido desde tu móvil</h3>
+                <p style='margin-bottom:0.45rem;'>Explora las familias, añade productos al carrito y envía tu pedido de forma cómoda, clara y sin llamadas innecesarias.</p>
+                <p style='margin-bottom:0;'><strong>WhatsApp:</strong> +34 647 93 63 56</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with w2:
+        if st.button("📦 Entrar al catálogo", use_container_width=True, key="inicio_catalogo_extra"):
+            ir_a_catalogo()
+            st.rerun()
+
 
 
 def render_contacto():
-    render_aply(APLY_MOVIL, "¿Tienes dudas? Escríbenos por WhatsApp y te ayudamos con el pedido.", altura=280)
-    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
     st.markdown("## Contacto")
-    st.markdown(
-        """
-        <div class='contact-card'>
-            <h3 style='margin-top:0;'>Aplytec</h3>
-            <p><strong>WhatsApp:</strong> +34 647 93 63 56</p>
-            <p>Escríbenos si prefieres ayuda directa para preparar tu pedido.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    c1, c2 = st.columns([1.7, 1])
+    with c1:
+        st.markdown(
+            """
+            <div class='contact-card'>
+                <h3 style='margin-top:0;'>Aplytec</h3>
+                <p><strong>WhatsApp:</strong> +34 647 93 63 56</p>
+                <p>Escríbenos si prefieres ayuda directa para preparar tu pedido.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.link_button("💬 Hablar por WhatsApp", WHATSAPP_LINK, use_container_width=True)
+    with c2:
+        render_aply(APLY_MOVIL, "¿Tienes dudas? Escríbenos por WhatsApp y te ayudamos con el pedido.", altura=280)
+
 
 
 def render_carrito():
-    render_aply(APLY_CARRITO, "Revisa tu pedido y no olvides indicar tu nombre y tu teléfono.", altura=230)
-    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
     st.markdown("## 🛒 Mi carrito")
-    st.markdown("Completa tu pedido y envíalo cuando esté todo correcto.")
+    c1, c2 = st.columns([1.8, 1])
+    with c1:
+        st.markdown("Completa tu pedido y envíalo cuando esté todo correcto.")
+    with c2:
+        render_aply(APLY_CARRITO, "Revisa tu pedido y no olvides indicar tu nombre y tu teléfono.", altura=230)
     ruta_pdf = "resumen_pedido.pdf"
 
     if st.session_state.carrito:
@@ -836,8 +907,6 @@ def render_catalogo(df):
                         st.rerun()
 
     if st.session_state.familia_actual is None:
-        render_aply(APLY_SENALA, "Elige una familia para ver los productos.", altura=190)
-        st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
         st.markdown("## Familias")
         st.caption("Toca una familia para ver los productos")
         render_rejilla_familias()
