@@ -39,17 +39,6 @@ QUIMICOS_SUBFAMILIAS_ORDENADAS = [
     ("Aseo personal", "sub_quimicos_aseo_personal.png"),
 ]
 
-CELULOSAS_SUBFAMILIAS_ORDENADAS = [
-    ("Servilletas", "sub_celulosas_servilletas.png"),
-    ("Manteles y mantelines", "sub_celulosas_manteles_mantelines.png"),
-    ("Toallas", "sub_celulosas_toallas.png"),
-    ("Papel higiénico industrial / jumbo", "sub_celulosas_papel_higienico_industrial_jumbo.png"),
-    ("Bobinas y papel mecha", "sub_celulosas_bobinas_papel_mecha.png"),
-    ("Papel higiénico doméstico", "sub_celulosas_papel_higienico_domestico.png"),
-    ("Papel camilla y sanitario", "sub_celulosas_papel_camilla_sanitario.png"),
-    ("Pañuelos y toallitas", "sub_celulosas_panuelos_toallitas.png"),
-]
-
 FAMILIAS_ORDENADAS = [
     ("Químicos", 1, "🧪"),
     ("Celulosas", 2, "🧻"),
@@ -197,27 +186,6 @@ def obtener_ruta_imagen_subfamilia_quimicos(subfamilia):
             return ruta
     return None
 
-
-def obtener_ruta_imagen_subfamilia_celulosas(subfamilia):
-    mapa = {
-        "Servilletas": "sub_celulosas_servilletas",
-        "Manteles y mantelines": "sub_celulosas_manteles_mantelines",
-        "Toallas": "sub_celulosas_toallas",
-        "Papel higiénico industrial / jumbo": "sub_celulosas_papel_higienico_industrial_jumbo",
-        "Bobinas y papel mecha": "sub_celulosas_bobinas_papel_mecha",
-        "Papel higiénico doméstico": "sub_celulosas_papel_higienico_domestico",
-        "Papel camilla y sanitario": "sub_celulosas_papel_camilla_sanitario",
-        "Pañuelos y toallitas": "sub_celulosas_panuelos_toallitas",
-    }
-    nombre = mapa.get(str(subfamilia).strip())
-    if not nombre:
-        return None
-    for ext in [".png", ".jpg", ".jpeg", ".webp"]:
-        ruta = CARPETA_IMAGENES / f"{nombre}{ext}"
-        if ruta.exists():
-            return ruta
-    return None
-
 def _mtime_seguro(ruta):
     try:
         return Path(ruta).stat().st_mtime
@@ -246,37 +214,29 @@ def imagen_data_uri(ruta):
     return f"data:image/{ext};base64,{imagen_a_base64(ruta)}"
 
 
-def _context_cookies():
-    try:
-        return getattr(st.context, "cookies", {}) or {}
-    except Exception:
-        return {}
 
 
 def obtener_client_id():
-    cookies = _context_cookies()
-    client_id = cookies.get("aply_client_id")
-    if client_id:
-        return str(client_id).strip()
-    if "client_id_temporal" not in st.session_state:
-        st.session_state.client_id_temporal = f"tmp_{uuid.uuid4().hex}"
-    return st.session_state.client_id_temporal
+    cid_qp = st.query_params.get("cid")
+    if cid_qp:
+        return str(cid_qp).strip()
+    if "client_id" not in st.session_state:
+        st.session_state.client_id = f"cli_{uuid.uuid4().hex}"
+    return st.session_state.client_id
 
 
 def ruta_carrito_cliente(client_id):
     CARPETA_CARRITOS.mkdir(parents=True, exist_ok=True)
     seguro = "".join(ch for ch in str(client_id) if ch.isalnum() or ch in ("_", "-"))
     if not seguro:
-        seguro = f"tmp_{uuid.uuid4().hex}"
+        seguro = f"cli_{uuid.uuid4().hex}"
     return CARPETA_CARRITOS / f"{seguro}.json"
 
 
 def guardar_carrito_servidor():
     try:
         client_id = st.session_state.get("client_id") or obtener_client_id()
-        st.session_state.client_id = client_id
         payload = {
-            "client_id": client_id,
             "carrito": st.session_state.get("carrito", []),
             "next_cart_id": int(st.session_state.get("next_cart_id", 1)),
         }
@@ -291,34 +251,12 @@ def cargar_carrito_servidor(client_id):
         if not ruta.exists():
             return None
         data = json.loads(ruta.read_text(encoding="utf-8"))
-        carrito = data.get("carrito", [])
-        next_cart_id = int(data.get("next_cart_id", 1))
-        return {"carrito": carrito, "next_cart_id": next_cart_id}
+        return {
+            "carrito": data.get("carrito", []),
+            "next_cart_id": int(data.get("next_cart_id", 1)),
+        }
     except Exception:
         return None
-
-
-def inyectar_persistencia_cliente():
-    client_id = st.session_state.get("client_id") or obtener_client_id()
-    carrito_json = json.dumps(st.session_state.get("carrito", []), ensure_ascii=False)
-    client_id_js = json.dumps(client_id)
-    carrito_js = json.dumps(carrito_json)
-    components.html(f"""
-    <script>
-    (function() {{
-      const clientId = {client_id_js};
-      const cartJson = {carrito_js};
-      try {{
-        localStorage.setItem('aply_client_id', clientId);
-        localStorage.setItem('aply_cart_backup', cartJson);
-      }} catch (e) {{}}
-      try {{
-        document.cookie = 'aply_client_id=' + encodeURIComponent(clientId) + '; path=/; max-age=' + (60*60*24*365) + '; SameSite=Lax';
-      }} catch (e) {{}}
-    }})();
-    </script>
-    """, height=0)
-
 
 def serializar_carrito_para_qp():
     try:
@@ -356,8 +294,10 @@ def restaurar_carrito_desde_qp(valor):
 
 
 def sync_query_params():
-    guardar_carrito_servidor()
     params = {"pantalla": st.session_state.pantalla_actual}
+    client_id = st.session_state.get("client_id") or obtener_client_id()
+    st.session_state.client_id = client_id
+    params["cid"] = client_id
     if st.session_state.familia_actual:
         params["familia"] = st.session_state.familia_actual
     if st.session_state.subfamilia_actual:
@@ -368,7 +308,8 @@ def sync_query_params():
 
 def qp_url(pantalla=None, familia=None, subfamilia=None):
     pantalla = pantalla or st.session_state.pantalla_actual or "catalogo"
-    parts = [f"pantalla={quote(str(pantalla), safe='')}"]
+    client_id = st.session_state.get("client_id") or obtener_client_id()
+    parts = [f"pantalla={quote(str(pantalla), safe='')}", f"cid={quote(str(client_id), safe='')}"]
     if familia:
         parts.append(f"familia={quote(str(familia), safe='')}")
     if subfamilia:
@@ -394,6 +335,7 @@ def agregar_o_sumar_al_carrito(codigo, nombre, tipo, precio_con_iva, cantidad=1)
             "PrecioUnitario": float(precio_con_iva)
         })
         st.session_state.next_cart_id += 1
+    guardar_carrito_servidor()
     sync_query_params()
 
 
@@ -411,8 +353,10 @@ def quitar_del_carrito(codigo, tipo, cantidad=1):
             item["Cantidad"] -= int(cantidad)
             if item["Cantidad"] <= 0:
                 st.session_state.carrito.pop(i)
+            guardar_carrito_servidor()
             sync_query_params()
             return
+    guardar_carrito_servidor()
     sync_query_params()
 
 
@@ -837,6 +781,7 @@ def render_carrito():
                     st.session_state.pdf_generado = True
                     st.session_state.carrito = []
                     guardar_carrito_servidor()
+                    sync_query_params()
 
         b1, b2, b3 = st.columns(3)
         with b1:
@@ -853,6 +798,7 @@ def render_carrito():
                 st.session_state.carrito = []
                 st.session_state.pdf_generado = False
                 guardar_carrito_servidor()
+                sync_query_params()
                 st.warning("Carrito vaciado")
                 st.rerun()
         with b3:
@@ -938,20 +884,6 @@ def render_rejilla_subfamilias_quimicos():
         img = obtener_ruta_imagen_subfamilia_quimicos(subfamilia)
         items.append({
             "href": qp_url(pantalla="catalogo", familia="Químicos", subfamilia=subfamilia),
-            "alt": subfamilia,
-            "img": imagen_data_uri(img) if img and img.exists() else None,
-            "fallback": subfamilia,
-        })
-    render_rejilla_component(items)
-
-
-
-def render_rejilla_subfamilias_celulosas():
-    items = []
-    for subfamilia, _archivo in CELULOSAS_SUBFAMILIAS_ORDENADAS:
-        img = obtener_ruta_imagen_subfamilia_celulosas(subfamilia)
-        items.append({
-            "href": qp_url(pantalla="catalogo", familia="Celulosas", subfamilia=subfamilia),
             "alt": subfamilia,
             "img": imagen_data_uri(img) if img and img.exists() else None,
             "fallback": subfamilia,
@@ -1113,10 +1045,6 @@ def render_catalogo(df):
                 st.markdown("### Selecciona una subfamilia")
                 render_rejilla_subfamilias_quimicos()
                 return
-            if familia_actual == "Celulosas":
-                st.markdown("### Selecciona una subfamilia")
-                render_rejilla_subfamilias_celulosas()
-                return
             subfamilias = (
                 df[df["Familia"] == familia_actual]["Subfamilia"]
                 .dropna()
@@ -1226,15 +1154,15 @@ if "pdf_generado" not in st.session_state:
     st.session_state.pdf_generado = False
 if "pantalla_actual" not in st.session_state:
     st.session_state.pantalla_actual = "inicio"
+if "client_id" not in st.session_state:
+    st.session_state.client_id = None
 
 qp = st.query_params
 st.session_state.client_id = obtener_client_id()
-carrito_restaurado = cargar_carrito_servidor(st.session_state.client_id)
-if carrito_restaurado and not st.session_state.carrito:
-    st.session_state.carrito = carrito_restaurado.get("carrito", [])
-    st.session_state.next_cart_id = max(
-        [int(x.get("id", 0)) for x in st.session_state.carrito] + [int(carrito_restaurado.get("next_cart_id", 1)), 0]
-    ) + 1
+carrito_guardado = cargar_carrito_servidor(st.session_state.client_id)
+if carrito_guardado and not st.session_state.carrito:
+    st.session_state.carrito = carrito_guardado.get("carrito", [])
+    st.session_state.next_cart_id = max([int(x.get("id", 0)) for x in st.session_state.carrito] + [int(carrito_guardado.get("next_cart_id", 1)), 0]) + 1
 cart_qp = qp.get("cart")
 if cart_qp and not st.session_state.carrito:
     carrito_qp = restaurar_carrito_desde_qp(cart_qp)
@@ -1253,7 +1181,6 @@ if qp.get("pantalla") in {"inicio", "catalogo", "carrito", "contacto"}:
 
 st.set_page_config(page_title="Catálogo APLYTEC", layout="wide")
 
-inyectar_persistencia_cliente()
 sync_query_params()
 df = cargar_datos()
 render_menu_superior()
