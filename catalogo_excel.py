@@ -5,6 +5,7 @@ import smtplib
 import ssl
 import base64
 import json
+import uuid
 from urllib.parse import quote
 from email.message import EmailMessage
 from fpdf import FPDF
@@ -12,6 +13,7 @@ from pathlib import Path
 
 ARCHIVO_EXCEL = "PRUEBA_CLASIFICADO.xlsx"
 CARPETA_IMAGENES = Path("imagenes")
+CARPETA_CARRITOS = Path("carritos_clientes")
 
 EMAIL_REMITENTE = "jguzmanraya@gmail.com"
 EMAIL_DESTINO = "jguzmanraya@gmail.com"
@@ -244,6 +246,80 @@ def imagen_data_uri(ruta):
     return f"data:image/{ext};base64,{imagen_a_base64(ruta)}"
 
 
+def _context_cookies():
+    try:
+        return getattr(st.context, "cookies", {}) or {}
+    except Exception:
+        return {}
+
+
+def obtener_client_id():
+    cookies = _context_cookies()
+    client_id = cookies.get("aply_client_id")
+    if client_id:
+        return str(client_id).strip()
+    if "client_id_temporal" not in st.session_state:
+        st.session_state.client_id_temporal = f"tmp_{uuid.uuid4().hex}"
+    return st.session_state.client_id_temporal
+
+
+def ruta_carrito_cliente(client_id):
+    CARPETA_CARRITOS.mkdir(parents=True, exist_ok=True)
+    seguro = "".join(ch for ch in str(client_id) if ch.isalnum() or ch in ("_", "-"))
+    if not seguro:
+        seguro = f"tmp_{uuid.uuid4().hex}"
+    return CARPETA_CARRITOS / f"{seguro}.json"
+
+
+def guardar_carrito_servidor():
+    try:
+        client_id = st.session_state.get("client_id") or obtener_client_id()
+        st.session_state.client_id = client_id
+        payload = {
+            "client_id": client_id,
+            "carrito": st.session_state.get("carrito", []),
+            "next_cart_id": int(st.session_state.get("next_cart_id", 1)),
+        }
+        ruta_carrito_cliente(client_id).write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def cargar_carrito_servidor(client_id):
+    try:
+        ruta = ruta_carrito_cliente(client_id)
+        if not ruta.exists():
+            return None
+        data = json.loads(ruta.read_text(encoding="utf-8"))
+        carrito = data.get("carrito", [])
+        next_cart_id = int(data.get("next_cart_id", 1))
+        return {"carrito": carrito, "next_cart_id": next_cart_id}
+    except Exception:
+        return None
+
+
+def inyectar_persistencia_cliente():
+    client_id = st.session_state.get("client_id") or obtener_client_id()
+    carrito_json = json.dumps(st.session_state.get("carrito", []), ensure_ascii=False)
+    client_id_js = json.dumps(client_id)
+    carrito_js = json.dumps(carrito_json)
+    components.html(f"""
+    <script>
+    (function() {{
+      const clientId = {client_id_js};
+      const cartJson = {carrito_js};
+      try {{
+        localStorage.setItem('aply_client_id', clientId);
+        localStorage.setItem('aply_cart_backup', cartJson);
+      }} catch (e) {{}}
+      try {{
+        document.cookie = 'aply_client_id=' + encodeURIComponent(clientId) + '; path=/; max-age=' + (60*60*24*365) + '; SameSite=Lax';
+      }} catch (e) {{}}
+    }})();
+    </script>
+    """, height=0)
+
+
 def serializar_carrito_para_qp():
     try:
         data = [{
@@ -280,14 +356,12 @@ def restaurar_carrito_desde_qp(valor):
 
 
 def sync_query_params():
+    guardar_carrito_servidor()
     params = {"pantalla": st.session_state.pantalla_actual}
     if st.session_state.familia_actual:
         params["familia"] = st.session_state.familia_actual
     if st.session_state.subfamilia_actual:
         params["subfamilia"] = st.session_state.subfamilia_actual
-    cart = serializar_carrito_para_qp()
-    if cart:
-        params["cart"] = cart
     st.query_params.clear()
     st.query_params.update(params)
 
@@ -299,9 +373,6 @@ def qp_url(pantalla=None, familia=None, subfamilia=None):
         parts.append(f"familia={quote(str(familia), safe='')}")
     if subfamilia:
         parts.append(f"subfamilia={quote(str(subfamilia), safe='')}")
-    cart = serializar_carrito_para_qp()
-    if cart:
-        parts.append(f"cart={cart}")
     return "?" + "&".join(parts)
 
 
@@ -709,6 +780,7 @@ def render_carrito():
 
         if nuevo_carrito != st.session_state.carrito or borrado:
             st.session_state.carrito = nuevo_carrito
+            guardar_carrito_servidor()
 
         st.markdown(f"### Total: {total:.2f} euros (IVA incluido)")
 
@@ -764,6 +836,7 @@ def render_carrito():
                     st.success("✅ Pedido enviado correctamente")
                     st.session_state.pdf_generado = True
                     st.session_state.carrito = []
+                    guardar_carrito_servidor()
 
         b1, b2, b3 = st.columns(3)
         with b1:
@@ -779,6 +852,7 @@ def render_carrito():
             if st.button("🗑️ Vaciar carrito", use_container_width=True):
                 st.session_state.carrito = []
                 st.session_state.pdf_generado = False
+                guardar_carrito_servidor()
                 st.warning("Carrito vaciado")
                 st.rerun()
         with b3:
@@ -1154,12 +1228,20 @@ if "pantalla_actual" not in st.session_state:
     st.session_state.pantalla_actual = "inicio"
 
 qp = st.query_params
+st.session_state.client_id = obtener_client_id()
+carrito_restaurado = cargar_carrito_servidor(st.session_state.client_id)
+if carrito_restaurado and not st.session_state.carrito:
+    st.session_state.carrito = carrito_restaurado.get("carrito", [])
+    st.session_state.next_cart_id = max(
+        [int(x.get("id", 0)) for x in st.session_state.carrito] + [int(carrito_restaurado.get("next_cart_id", 1)), 0]
+    ) + 1
 cart_qp = qp.get("cart")
-if cart_qp:
+if cart_qp and not st.session_state.carrito:
     carrito_qp = restaurar_carrito_desde_qp(cart_qp)
     if carrito_qp:
         st.session_state.carrito = carrito_qp
         st.session_state.next_cart_id = max([int(x.get("id", 0)) for x in carrito_qp] + [0]) + 1
+        guardar_carrito_servidor()
 if qp.get("familia"):
     st.session_state.familia_actual = qp.get("familia")
     st.session_state.pantalla_actual = "catalogo"
@@ -1171,6 +1253,7 @@ if qp.get("pantalla") in {"inicio", "catalogo", "carrito", "contacto"}:
 
 st.set_page_config(page_title="Catálogo APLYTEC", layout="wide")
 
+inyectar_persistencia_cliente()
 sync_query_params()
 df = cargar_datos()
 render_menu_superior()
