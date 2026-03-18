@@ -37,6 +37,17 @@ QUIMICOS_SUBFAMILIAS_ORDENADAS = [
     ("Aseo personal", "sub_quimicos_aseo_personal.png"),
 ]
 
+CELULOSAS_SUBFAMILIAS_ORDENADAS = [
+    ("Servilletas", "sub_celulosas_servilletas.png"),
+    ("Manteles y mantelines", "sub_celulosas_manteles_mantelines.png"),
+    ("Toallas", "sub_celulosas_toallas.png"),
+    ("Papel higiénico industrial / jumbo", "sub_celulosas_papel_higienico_industrial_jumbo.png"),
+    ("Bobinas y papel mecha", "sub_celulosas_bobinas_papel_mecha.png"),
+    ("Papel higiénico doméstico", "sub_celulosas_papel_higienico_domestico.png"),
+    ("Papel camilla y sanitario", "sub_celulosas_papel_camilla_sanitario.png"),
+    ("Pañuelos y toallitas", "sub_celulosas_panuelos_toallitas.png"),
+]
+
 FAMILIAS_ORDENADAS = [
     ("Químicos", 1, "🧪"),
     ("Celulosas", 2, "🧻"),
@@ -822,6 +833,19 @@ def render_rejilla_subfamilias_quimicos():
     render_rejilla_component(items)
 
 
+def render_rejilla_subfamilias_celulosas():
+    items = []
+    for subfamilia, _archivo in CELULOSAS_SUBFAMILIAS_ORDENADAS:
+        img = obtener_ruta_imagen_subfamilia_celulosas(subfamilia)
+        items.append({
+            "href": qp_url(pantalla="catalogo", familia="Celulosas", subfamilia=subfamilia),
+            "alt": subfamilia,
+            "img": imagen_data_uri(img) if img and img.exists() else None,
+            "fallback": subfamilia,
+        })
+    render_rejilla_component(items)
+
+
 def construir_mapa_cantidades_carrito():
     cantidades = {}
     for item in st.session_state.carrito:
@@ -975,6 +999,10 @@ def render_catalogo(df):
             if familia_actual == "Químicos":
                 st.markdown("### Selecciona una subfamilia")
                 render_rejilla_subfamilias_quimicos()
+                return
+            if familia_actual == "Celulosas":
+                st.markdown("### Selecciona una subfamilia")
+                render_rejilla_subfamilias_celulosas()
                 return
             subfamilias = (
                 df[df["Familia"] == familia_actual]["Subfamilia"]
