@@ -195,6 +195,28 @@ def obtener_ruta_imagen_subfamilia_quimicos(subfamilia):
             return ruta
     return None
 
+
+
+def obtener_ruta_imagen_subfamilia_celulosas(subfamilia):
+    mapa = {
+        "Servilletas": "sub_celulosas_servilletas",
+        "Manteles y mantelines": "sub_celulosas_manteles_mantelines",
+        "Toallas": "sub_celulosas_toallas",
+        "Papel higiénico industrial / jumbo": "sub_celulosas_papel_higienico_industrial_jumbo",
+        "Bobinas y papel mecha": "sub_celulosas_bobinas_papel_mecha",
+        "Papel higiénico doméstico": "sub_celulosas_papel_higienico_domestico",
+        "Papel camilla y sanitario": "sub_celulosas_papel_camilla_sanitario",
+        "Pañuelos y toallitas": "sub_celulosas_panuelos_toallitas",
+    }
+    nombre = mapa.get(str(subfamilia).strip())
+    if not nombre:
+        return None
+    for ext in [".png", ".jpg", ".jpeg", ".webp"]:
+        ruta = CARPETA_IMAGENES / f"{nombre}{ext}"
+        if ruta.exists():
+            return ruta
+    return None
+
 def _mtime_seguro(ruta):
     try:
         return Path(ruta).stat().st_mtime
