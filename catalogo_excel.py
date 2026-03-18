@@ -26,18 +26,7 @@ APLY_SENALA = CARPETA_IMAGENES / "aply_senalando.png"
 APLY_CARRITO = CARPETA_IMAGENES / "aply_carrito.png"
 APLY_MOVIL = CARPETA_IMAGENES / "aply_movil.png"
 
-QUIMICOS_SUBUTILES_SUBFAMILIAS_ORDENADAS = [
-    ("Bayetas, paños y estropajos", "sub_utiles_bayetas_panos_estropajos.png"),
-    ("Mopas, fregonas y recambios", "sub_utiles_mopas_fregonas_recambios.png"),
-    ("Escobas, cepillos y recogedores", "sub_utiles_escobas_cepillos_recogedores.png"),
-    ("Limpiacristales y útiles de cristalería", "sub_utiles_limpiacristales_utiles_cristaleria.png"),
-    ("Cubos, carros y escurridores", "sub_utiles_cubos_carros_escurridores.png"),
-    ("Pulverizadores, dosificación y señalización", "sub_utiles_pulverizadores_dosificacion_senalizacion.png"),
-    ("Guantes y protección", "sub_utiles_guantes_proteccion.png"),
-    ("Otros útiles y accesorios", "sub_utiles_otros_utiles_accesorios.png"),
-]
-
-FAMILIAS_ORDENADAS = [
+QUIMICOS_SUBFAMILIAS_ORDENADAS = [
     ("Lavavajillas", "sub_quimicos_lavavajillas.png"),
     ("Desengrasantes", "sub_quimicos_desengrasantes.png"),
     ("Suelos y superficies", "sub_quimicos_suelos_superficies.png"),
@@ -57,6 +46,17 @@ CELULOSAS_SUBFAMILIAS_ORDENADAS = [
     ("Papel higiénico doméstico", "sub_celulosas_papel_higienico_domestico.png"),
     ("Papel camilla y sanitario", "sub_celulosas_papel_camilla_sanitario.png"),
     ("Pañuelos y toallitas", "sub_celulosas_panuelos_toallitas.png"),
+]
+
+UTILES_SUBFAMILIAS_ORDENADAS = [
+    ("Bayetas, paños y estropajos", "sub_utiles_bayetas_panos_estropajos.png"),
+    ("Mopas, fregonas y recambios", "sub_utiles_mopas_fregonas_recambios.png"),
+    ("Escobas, cepillos y recogedores", "sub_utiles_escobas_cepillos_recogedores.png"),
+    ("Limpiacristales y útiles de cristalería", "sub_utiles_limpiacristales_utiles_cristaleria.png"),
+    ("Cubos, carros y escurridores", "sub_utiles_cubos_carros_escurridores.png"),
+    ("Pulverizadores, dosificación y señalización", "sub_utiles_pulverizadores_dosificacion_senalizacion.png"),
+    ("Guantes y protección", "sub_utiles_guantes_proteccion.png"),
+    ("Otros útiles y accesorios", "sub_utiles_otros_utiles_accesorios.png"),
 ]
 
 FAMILIAS_ORDENADAS = [
@@ -164,6 +164,27 @@ def cargar_datos():
     return df
 
 
+def obtener_ruta_imagen_subfamilia_utiles(subfamilia):
+    mapa = {
+        "Bayetas, paños y estropajos": "sub_utiles_bayetas_panos_estropajos",
+        "Mopas, fregonas y recambios": "sub_utiles_mopas_fregonas_recambios",
+        "Escobas, cepillos y recogedores": "sub_utiles_escobas_cepillos_recogedores",
+        "Limpiacristales y útiles de cristalería": "sub_utiles_limpiacristales_utiles_cristaleria",
+        "Cubos, carros y escurridores": "sub_utiles_cubos_carros_escurridores",
+        "Pulverizadores, dosificación y señalización": "sub_utiles_pulverizadores_dosificacion_senalizacion",
+        "Guantes y protección": "sub_utiles_guantes_proteccion",
+        "Otros útiles y accesorios": "sub_utiles_otros_utiles_accesorios",
+    }
+    base = mapa.get(str(subfamilia).strip())
+    if not base:
+        return None
+    for suf in [".png", ".jpg", ".jpeg", ".webp"]:
+        ruta = IMG_DIR / f"{base}{suf}"
+        if ruta.exists():
+            return ruta
+    return None
+
+
 def obtener_ruta_imagen_producto(codigo):
     for ext in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
         ruta = CARPETA_IMAGENES / f"{codigo}{ext}"
@@ -218,26 +239,6 @@ def obtener_ruta_imagen_subfamilia_celulosas(subfamilia):
         "Papel higiénico doméstico": "sub_celulosas_papel_higienico_domestico",
         "Papel camilla y sanitario": "sub_celulosas_papel_camilla_sanitario",
         "Pañuelos y toallitas": "sub_celulosas_panuelos_toallitas",
-    }
-    nombre = mapa.get(str(subfamilia).strip())
-    if not nombre:
-        return None
-    for ext in [".png", ".jpg", ".jpeg", ".webp"]:
-        ruta = CARPETA_IMAGENES / f"{nombre}{ext}"
-        if ruta.exists():
-            return ruta
-    return None
-
-def obtener_ruta_imagen_subfamilia_utiles(subfamilia):
-    mapa = {
-        "Bayetas, paños y estropajos": "sub_utiles_bayetas_panos_estropajos",
-        "Mopas, fregonas y recambios": "sub_utiles_mopas_fregonas_recambios",
-        "Escobas, cepillos y recogedores": "sub_utiles_escobas_cepillos_recogedores",
-        "Limpiacristales y útiles de cristalería": "sub_utiles_limpiacristales_utiles_cristaleria",
-        "Cubos, carros y escurridores": "sub_utiles_cubos_carros_escurridores",
-        "Pulverizadores, dosificación y señalización": "sub_utiles_pulverizadores_dosificacion_senalizacion",
-        "Guantes y protección": "sub_utiles_guantes_proteccion",
-        "Otros útiles y accesorios": "sub_utiles_otros_utiles_accesorios",
     }
     nombre = mapa.get(str(subfamilia).strip())
     if not nombre:
