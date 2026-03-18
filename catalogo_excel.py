@@ -26,7 +26,18 @@ APLY_SENALA = CARPETA_IMAGENES / "aply_senalando.png"
 APLY_CARRITO = CARPETA_IMAGENES / "aply_carrito.png"
 APLY_MOVIL = CARPETA_IMAGENES / "aply_movil.png"
 
-QUIMICOS_SUBFAMILIAS_ORDENADAS = [
+QUIMICOS_SUBUTILES_SUBFAMILIAS_ORDENADAS = [
+    ("Bayetas, paños y estropajos", "sub_utiles_bayetas_panos_estropajos.png"),
+    ("Mopas, fregonas y recambios", "sub_utiles_mopas_fregonas_recambios.png"),
+    ("Escobas, cepillos y recogedores", "sub_utiles_escobas_cepillos_recogedores.png"),
+    ("Limpiacristales y útiles de cristalería", "sub_utiles_limpiacristales_utiles_cristaleria.png"),
+    ("Cubos, carros y escurridores", "sub_utiles_cubos_carros_escurridores.png"),
+    ("Pulverizadores, dosificación y señalización", "sub_utiles_pulverizadores_dosificacion_senalizacion.png"),
+    ("Guantes y protección", "sub_utiles_guantes_proteccion.png"),
+    ("Otros útiles y accesorios", "sub_utiles_otros_utiles_accesorios.png"),
+]
+
+FAMILIAS_ORDENADAS = [
     ("Lavavajillas", "sub_quimicos_lavavajillas.png"),
     ("Desengrasantes", "sub_quimicos_desengrasantes.png"),
     ("Suelos y superficies", "sub_quimicos_suelos_superficies.png"),
@@ -207,6 +218,26 @@ def obtener_ruta_imagen_subfamilia_celulosas(subfamilia):
         "Papel higiénico doméstico": "sub_celulosas_papel_higienico_domestico",
         "Papel camilla y sanitario": "sub_celulosas_papel_camilla_sanitario",
         "Pañuelos y toallitas": "sub_celulosas_panuelos_toallitas",
+    }
+    nombre = mapa.get(str(subfamilia).strip())
+    if not nombre:
+        return None
+    for ext in [".png", ".jpg", ".jpeg", ".webp"]:
+        ruta = CARPETA_IMAGENES / f"{nombre}{ext}"
+        if ruta.exists():
+            return ruta
+    return None
+
+def obtener_ruta_imagen_subfamilia_utiles(subfamilia):
+    mapa = {
+        "Bayetas, paños y estropajos": "sub_utiles_bayetas_panos_estropajos",
+        "Mopas, fregonas y recambios": "sub_utiles_mopas_fregonas_recambios",
+        "Escobas, cepillos y recogedores": "sub_utiles_escobas_cepillos_recogedores",
+        "Limpiacristales y útiles de cristalería": "sub_utiles_limpiacristales_utiles_cristaleria",
+        "Cubos, carros y escurridores": "sub_utiles_cubos_carros_escurridores",
+        "Pulverizadores, dosificación y señalización": "sub_utiles_pulverizadores_dosificacion_senalizacion",
+        "Guantes y protección": "sub_utiles_guantes_proteccion",
+        "Otros útiles y accesorios": "sub_utiles_otros_utiles_accesorios",
     }
     nombre = mapa.get(str(subfamilia).strip())
     if not nombre:
@@ -868,6 +899,19 @@ def render_rejilla_subfamilias_celulosas():
     render_rejilla_component(items)
 
 
+def render_rejilla_subfamilias_utiles():
+    items = []
+    for subfamilia, _archivo in UTILES_SUBFAMILIAS_ORDENADAS:
+        img = obtener_ruta_imagen_subfamilia_utiles(subfamilia)
+        items.append({
+            "href": qp_url(pantalla="catalogo", familia="Útiles", subfamilia=subfamilia),
+            "alt": subfamilia,
+            "img": imagen_data_uri(img) if img and img.exists() else None,
+            "fallback": subfamilia,
+        })
+    render_rejilla_component(items)
+
+
 def construir_mapa_cantidades_carrito():
     cantidades = {}
     for item in st.session_state.carrito:
@@ -1025,6 +1069,10 @@ def render_catalogo(df):
             if familia_actual == "Celulosas":
                 st.markdown("### Selecciona una subfamilia")
                 render_rejilla_subfamilias_celulosas()
+                return
+            if familia_actual == "Útiles":
+                st.markdown("### Selecciona una subfamilia")
+                render_rejilla_subfamilias_utiles()
                 return
             subfamilias = (
                 df[df["Familia"] == familia_actual]["Subfamilia"]
