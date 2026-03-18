@@ -5,7 +5,6 @@ import smtplib
 import ssl
 import base64
 import json
-import uuid
 from urllib.parse import quote
 from email.message import EmailMessage
 from fpdf import FPDF
@@ -13,7 +12,6 @@ from pathlib import Path
 
 ARCHIVO_EXCEL = "PRUEBA_CLASIFICADO.xlsx"
 CARPETA_IMAGENES = Path("imagenes")
-CARPETA_CARRITOS = Path("carritos_clientes")
 
 EMAIL_REMITENTE = "jguzmanraya@gmail.com"
 EMAIL_DESTINO = "jguzmanraya@gmail.com"
@@ -214,50 +212,6 @@ def imagen_data_uri(ruta):
     return f"data:image/{ext};base64,{imagen_a_base64(ruta)}"
 
 
-
-
-def obtener_client_id():
-    cid_qp = st.query_params.get("cid")
-    if cid_qp:
-        return str(cid_qp).strip()
-    if "client_id" not in st.session_state:
-        st.session_state.client_id = f"cli_{uuid.uuid4().hex}"
-    return st.session_state.client_id
-
-
-def ruta_carrito_cliente(client_id):
-    CARPETA_CARRITOS.mkdir(parents=True, exist_ok=True)
-    seguro = "".join(ch for ch in str(client_id) if ch.isalnum() or ch in ("_", "-"))
-    if not seguro:
-        seguro = f"cli_{uuid.uuid4().hex}"
-    return CARPETA_CARRITOS / f"{seguro}.json"
-
-
-def guardar_carrito_servidor():
-    try:
-        client_id = st.session_state.get("client_id") or obtener_client_id()
-        payload = {
-            "carrito": st.session_state.get("carrito", []),
-            "next_cart_id": int(st.session_state.get("next_cart_id", 1)),
-        }
-        ruta_carrito_cliente(client_id).write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-    except Exception:
-        pass
-
-
-def cargar_carrito_servidor(client_id):
-    try:
-        ruta = ruta_carrito_cliente(client_id)
-        if not ruta.exists():
-            return None
-        data = json.loads(ruta.read_text(encoding="utf-8"))
-        return {
-            "carrito": data.get("carrito", []),
-            "next_cart_id": int(data.get("next_cart_id", 1)),
-        }
-    except Exception:
-        return None
-
 def serializar_carrito_para_qp():
     try:
         data = [{
@@ -295,25 +249,27 @@ def restaurar_carrito_desde_qp(valor):
 
 def sync_query_params():
     params = {"pantalla": st.session_state.pantalla_actual}
-    client_id = st.session_state.get("client_id") or obtener_client_id()
-    st.session_state.client_id = client_id
-    params["cid"] = client_id
     if st.session_state.familia_actual:
         params["familia"] = st.session_state.familia_actual
     if st.session_state.subfamilia_actual:
         params["subfamilia"] = st.session_state.subfamilia_actual
+    cart = serializar_carrito_para_qp()
+    if cart:
+        params["cart"] = cart
     st.query_params.clear()
     st.query_params.update(params)
 
 
 def qp_url(pantalla=None, familia=None, subfamilia=None):
     pantalla = pantalla or st.session_state.pantalla_actual or "catalogo"
-    client_id = st.session_state.get("client_id") or obtener_client_id()
-    parts = [f"pantalla={quote(str(pantalla), safe='')}", f"cid={quote(str(client_id), safe='')}"]
+    parts = [f"pantalla={quote(str(pantalla), safe='')}"]
     if familia:
         parts.append(f"familia={quote(str(familia), safe='')}")
     if subfamilia:
         parts.append(f"subfamilia={quote(str(subfamilia), safe='')}")
+    cart = serializar_carrito_para_qp()
+    if cart:
+        parts.append(f"cart={cart}")
     return "?" + "&".join(parts)
 
 
@@ -335,7 +291,6 @@ def agregar_o_sumar_al_carrito(codigo, nombre, tipo, precio_con_iva, cantidad=1)
             "PrecioUnitario": float(precio_con_iva)
         })
         st.session_state.next_cart_id += 1
-    guardar_carrito_servidor()
     sync_query_params()
 
 
@@ -353,10 +308,8 @@ def quitar_del_carrito(codigo, tipo, cantidad=1):
             item["Cantidad"] -= int(cantidad)
             if item["Cantidad"] <= 0:
                 st.session_state.carrito.pop(i)
-            guardar_carrito_servidor()
             sync_query_params()
             return
-    guardar_carrito_servidor()
     sync_query_params()
 
 
@@ -477,7 +430,6 @@ def volver_a_subfamilias():
 
 
 def render_menu_superior():
-    total = total_items_carrito()
     st.markdown(
         """
         <style>
@@ -518,19 +470,27 @@ def render_menu_superior():
             margin:0 auto;
             color:#3e5140;
         }
-        .hero-mini-grid {
-            display:grid;
-            grid-template-columns: repeat(3, minmax(0,1fr));
-            gap:.8rem;
-            margin-top:1.4rem;
-        }
-        .hero-mini-card {
-            background: rgba(255,255,255,.78);
+        .hero-info-box {
+            max-width: 760px;
+            margin: 1.4rem auto 0 auto;
+            background: rgba(255,255,255,.72);
             border:1px solid #dfeedd;
-            border-radius:18px;
-            padding:.9rem;
-            font-weight:600;
+            border-radius:20px;
+            padding:1rem 1.1rem;
+            text-align:left;
+        }
+        .hero-info-title {
+            margin:0 0 .55rem 0;
+            font-size:1rem;
+            font-weight:700;
             color:#355e2b;
+        }
+        .hero-info-list {
+            margin:0;
+            padding-left:1.2rem;
+            color:#355e2b;
+            line-height:1.7;
+            font-weight:600;
         }
         .contact-card {
             background: linear-gradient(135deg, #f8fbf8 0%, #eef7eb 100%);
@@ -539,38 +499,19 @@ def render_menu_superior():
             padding:1.25rem;
             box-shadow: 0 8px 20px rgba(0,0,0,.05);
         }
-        .cta-band {
-            background:#355e2b;
-            color:white;
-            border-radius:22px;
-            padding:1.2rem 1.2rem;
-            box-shadow: 0 12px 26px rgba(53,94,43,.22);
-        }
-        .cta-band p, .cta-band h3 {color:white; margin:0;}
         .topbar-btn button {height: 48px; font-weight: 700;}
-        @media (max-width: 900px) {
-            .hero-mini-grid {grid-template-columns: 1fr;}
-        }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    b1, b2, b3, b4 = st.columns([1.1, 1.1, 1.1, 1.2])
+    b1, b2 = st.columns([1.1, 4.9])
     with b1:
-        if st.button("🏠 Inicio", use_container_width=True, key="top_inicio"):
+        if st.button("🏠 Ir a inicio", use_container_width=True, key="top_inicio"):
             ir_a_inicio()
             st.rerun()
     with b2:
-        if st.button("📦 Ver productos", use_container_width=True, key="top_productos"):
-            ir_a_catalogo()
-            st.rerun()
-    with b3:
-        if st.button(f"🛒 Mi carrito ({total})", use_container_width=True, key="top_carrito"):
-            ir_a_carrito()
-            st.rerun()
-    with b4:
-        st.link_button("💬 WhatsApp", WHATSAPP_LINK, use_container_width=True)
+        st.markdown("<div style='height:48px;'></div>", unsafe_allow_html=True)
 
     st.markdown("<div style='margin-top:0.3rem'></div>", unsafe_allow_html=True)
 
@@ -585,10 +526,13 @@ def render_inicio():
             <img src='{logo_src}' style='width: min(430px, 82%); margin-bottom: 1rem;' />
             <h1 class='hero-title'>Haz tu pedido online</h1>
             <p class='hero-subtitle'>Accede al catálogo de Aplytec de forma rápida y sencilla. Encuentra lo que necesitas, añádelo al carrito y envía tu pedido desde el móvil en pocos pasos.</p>
-            <div class='hero-mini-grid'>
-                <div class='hero-mini-card'>📦 Productos organizados por familias</div>
-                <div class='hero-mini-card'>🛒 Compra rápida y clara</div>
-                <div class='hero-mini-card'>💬 Atención directa por WhatsApp</div>
+            <div class='hero-info-box'>
+                <div class='hero-info-title'>Ventajas del catálogo</div>
+                <ul class='hero-info-list'>
+                    <li>Productos organizados por familias</li>
+                    <li>Compra rápida y clara</li>
+                    <li>Preparación del pedido en pocos pasos</li>
+                </ul>
             </div>
         </div>
         """,
@@ -596,7 +540,7 @@ def render_inicio():
     )
 
     st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
-    render_aply(APLY_SALUDA, "Hola, soy Aply. Entra al catálogo y prepara tu pedido en pocos pasos.", altura=280)
+    render_aply(APLY_SALUDA, "Hola, soy Aply. Entra en el catálogo pulsando el botón 'Ver productos' y prepara tu pedido en pocos pasos.", altura=280)
 
     st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
@@ -614,17 +558,9 @@ def render_inicio():
             st.rerun()
 
     st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
-    cta1, cta2 = st.columns([1.8, 1.2])
-    with cta1:
-        st.markdown(
-            """
-            <div class='cta-band'>
-                <h3>Escanea, entra y pide</h3>
-                <p style='margin-top:.35rem;'>Ideal para panfletos y clientes: acceso directo al catálogo, navegación fácil y contacto inmediato.</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    cta_spacer, cta2 = st.columns([1.8, 1.2])
+    with cta_spacer:
+        st.markdown("<div></div>", unsafe_allow_html=True)
     with cta2:
         st.link_button("💬 Pedir por WhatsApp", WHATSAPP_LINK, use_container_width=True)
 
@@ -724,7 +660,6 @@ def render_carrito():
 
         if nuevo_carrito != st.session_state.carrito or borrado:
             st.session_state.carrito = nuevo_carrito
-            guardar_carrito_servidor()
 
         st.markdown(f"### Total: {total:.2f} euros (IVA incluido)")
 
@@ -780,8 +715,6 @@ def render_carrito():
                     st.success("✅ Pedido enviado correctamente")
                     st.session_state.pdf_generado = True
                     st.session_state.carrito = []
-                    guardar_carrito_servidor()
-                    sync_query_params()
 
         b1, b2, b3 = st.columns(3)
         with b1:
@@ -797,8 +730,6 @@ def render_carrito():
             if st.button("🗑️ Vaciar carrito", use_container_width=True):
                 st.session_state.carrito = []
                 st.session_state.pdf_generado = False
-                guardar_carrito_servidor()
-                sync_query_params()
                 st.warning("Carrito vaciado")
                 st.rerun()
         with b3:
@@ -1154,22 +1085,14 @@ if "pdf_generado" not in st.session_state:
     st.session_state.pdf_generado = False
 if "pantalla_actual" not in st.session_state:
     st.session_state.pantalla_actual = "inicio"
-if "client_id" not in st.session_state:
-    st.session_state.client_id = None
 
 qp = st.query_params
-st.session_state.client_id = obtener_client_id()
-carrito_guardado = cargar_carrito_servidor(st.session_state.client_id)
-if carrito_guardado and not st.session_state.carrito:
-    st.session_state.carrito = carrito_guardado.get("carrito", [])
-    st.session_state.next_cart_id = max([int(x.get("id", 0)) for x in st.session_state.carrito] + [int(carrito_guardado.get("next_cart_id", 1)), 0]) + 1
 cart_qp = qp.get("cart")
-if cart_qp and not st.session_state.carrito:
+if cart_qp:
     carrito_qp = restaurar_carrito_desde_qp(cart_qp)
     if carrito_qp:
         st.session_state.carrito = carrito_qp
         st.session_state.next_cart_id = max([int(x.get("id", 0)) for x in carrito_qp] + [0]) + 1
-        guardar_carrito_servidor()
 if qp.get("familia"):
     st.session_state.familia_actual = qp.get("familia")
     st.session_state.pantalla_actual = "catalogo"
