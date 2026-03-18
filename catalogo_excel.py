@@ -179,7 +179,7 @@ def obtener_ruta_imagen_subfamilia_utiles(subfamilia):
     if not base:
         return None
     for suf in [".png", ".jpg", ".jpeg", ".webp"]:
-        ruta = IMG_DIR / f"{base}{suf}"
+        ruta = CARPETA_IMAGENES / f"{base}{suf}"
         if ruta.exists():
             return ruta
     return None
