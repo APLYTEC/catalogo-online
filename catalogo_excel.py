@@ -662,19 +662,27 @@ def render_menu_superior():
             margin:0 auto;
             color:#3e5140;
         }
-        .hero-mini-grid {
-            display:grid;
-            grid-template-columns: repeat(3, minmax(0,1fr));
-            gap:.8rem;
-            margin-top:1.4rem;
-        }
-        .hero-mini-card {
-            background: rgba(255,255,255,.78);
+        .hero-info-box {
+            max-width: 760px;
+            margin: 1.4rem auto 0 auto;
+            background: rgba(255,255,255,.72);
             border:1px solid #dfeedd;
-            border-radius:18px;
-            padding:.9rem;
-            font-weight:600;
+            border-radius:20px;
+            padding:1rem 1.1rem;
+            text-align:left;
+        }
+        .hero-info-title {
+            margin:0 0 .55rem 0;
+            font-size:1rem;
+            font-weight:700;
             color:#355e2b;
+        }
+        .hero-info-list {
+            margin:0;
+            padding-left:1.2rem;
+            color:#355e2b;
+            line-height:1.7;
+            font-weight:600;
         }
         .contact-card {
             background: linear-gradient(135deg, #f8fbf8 0%, #eef7eb 100%);
@@ -692,9 +700,6 @@ def render_menu_superior():
         }
         .cta-band p, .cta-band h3 {color:white; margin:0;}
         .topbar-btn button {height: 48px; font-weight: 700;}
-        @media (max-width: 900px) {
-            .hero-mini-grid {grid-template-columns: 1fr;}
-        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -729,10 +734,13 @@ def render_inicio():
             <img src='{logo_src}' style='width: min(430px, 82%); margin-bottom: 1rem;' />
             <h1 class='hero-title'>Haz tu pedido online</h1>
             <p class='hero-subtitle'>Accede al catálogo de Aplytec de forma rápida y sencilla. Encuentra lo que necesitas, añádelo al carrito y envía tu pedido desde el móvil en pocos pasos.</p>
-            <div class='hero-mini-grid'>
-                <div class='hero-mini-card'>📦 Productos organizados por familias</div>
-                <div class='hero-mini-card'>🛒 Compra rápida y clara</div>
-                <div class='hero-mini-card'>💬 Atención directa por WhatsApp</div>
+            <div class='hero-info-box'>
+                <div class='hero-info-title'>Ventajas del catálogo</div>
+                <ul class='hero-info-list'>
+                    <li>Productos organizados por familias</li>
+                    <li>Compra rápida y clara</li>
+                    <li>Preparación del pedido en pocos pasos</li>
+                </ul>
             </div>
         </div>
         """,
