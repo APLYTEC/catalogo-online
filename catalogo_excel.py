@@ -12,6 +12,7 @@ from pathlib import Path
 
 ARCHIVO_EXCEL = "PRUEBA_CLASIFICADO.xlsx"
 CARPETA_IMAGENES = Path("imagenes")
+CARPETAS_IMAGENES_CANDIDATAS = [Path("imagenes"), Path("Imagenes"), Path("image"), Path("images")]
 
 EMAIL_REMITENTE = "jguzmanraya@gmail.com"
 EMAIL_DESTINO = "jguzmanraya@gmail.com"
@@ -175,6 +176,26 @@ def cargar_datos():
     return df
 
 
+
+
+def buscar_imagen_por_bases(bases, extensiones=(".png", ".jpg", ".jpeg", ".webp", ".gif")):
+    if isinstance(bases, str):
+        bases = [bases]
+    carpetas = []
+    for carpeta in CARPETAS_IMAGENES_CANDIDATAS:
+        if carpeta not in carpetas:
+            carpetas.append(carpeta)
+    if CARPETA_IMAGENES not in carpetas:
+        carpetas.insert(0, CARPETA_IMAGENES)
+
+    for carpeta in carpetas:
+        for base in bases:
+            for ext in extensiones:
+                ruta = carpeta / f"{base}{ext}"
+                if ruta.exists():
+                    return ruta
+    return None
+
 def obtener_ruta_imagen_subfamilia_utiles(subfamilia):
     mapa = {
         "Bayetas, paños y estropajos": "sub_utiles_bayetas_panos_estropajos",
@@ -218,11 +239,7 @@ def obtener_ruta_imagen_subfamilia_desechables(subfamilia):
 
 
 def obtener_ruta_imagen_producto(codigo):
-    for ext in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
-        ruta = CARPETA_IMAGENES / f"{codigo}{ext}"
-        if ruta.exists():
-            return str(ruta)
-    return None
+    return str(buscar_imagen_por_bases(str(codigo), extensiones=(".jpg", ".jpeg", ".png", ".webp", ".gif"))) if buscar_imagen_por_bases(str(codigo), extensiones=(".jpg", ".jpeg", ".png", ".webp", ".gif")) else None
 
 
 def obtener_ruta_imagen_familia(nombre_familia):
@@ -230,56 +247,40 @@ def obtener_ruta_imagen_familia(nombre_familia):
     fam_id = info.get("id")
     if fam_id is None:
         return None
-    for ext in [".png", ".jpg", ".jpeg", ".webp"]:
-        ruta = CARPETA_IMAGENES / f"familia_{fam_id}{ext}"
-        if ruta.exists():
-            return ruta
-    return None
+    return buscar_imagen_por_bases(f"familia_{fam_id}")
 
 
 
 
 def obtener_ruta_imagen_subfamilia_quimicos(subfamilia):
     mapa = {
-        "Lavavajillas": "sub_quimicos_lavavajillas",
-        "Desengrasantes": "sub_quimicos_desengrasantes",
-        "Suelos y superficies": "sub_quimicos_suelos_superficies",
-        "Baños y sanitarios": "sub_quimicos_banos_sanitarios",
-        "Desinfección": "sub_quimicos_desinfeccion",
-        "Lavandería": "sub_quimicos_lavanderia",
-        "Ambientadores": "sub_quimicos_ambientadores",
-        "Aseo personal": "sub_quimicos_aseo_personal",
+        "Lavavajillas": ["sub_quimicos_lavavajillas"],
+        "Desengrasantes": ["sub_quimicos_desengrasantes"],
+        "Suelos y superficies": ["sub_quimicos_suelos_superficies"],
+        "Baños y sanitarios": ["sub_quimicos_banos_sanitarios"],
+        "Desinfección": ["sub_quimicos_desinfeccion"],
+        "Lavandería": ["sub_quimicos_lavanderia"],
+        "Ambientadores": ["sub_quimicos_ambientadores"],
+        "Aseo personal": ["sub_quimicos_aseo_personal"],
     }
-    nombre = mapa.get(str(subfamilia).strip())
-    if not nombre:
-        return None
-    for ext in [".png", ".jpg", ".jpeg", ".webp"]:
-        ruta = CARPETA_IMAGENES / f"{nombre}{ext}"
-        if ruta.exists():
-            return ruta
-    return None
+    bases = mapa.get(str(subfamilia).strip())
+    return buscar_imagen_por_bases(bases) if bases else None
 
 
 
 def obtener_ruta_imagen_subfamilia_celulosas(subfamilia):
     mapa = {
-        "Servilletas": "sub_celulosas_servilletas",
-        "Manteles y mantelines": "sub_celulosas_manteles_mantelines",
-        "Toallas": "sub_celulosas_toallas",
-        "Papel higiénico industrial / jumbo": "sub_celulosas_papel_higienico_industrial_jumbo",
-        "Bobinas y papel mecha": "sub_celulosas_bobinas_papel_mecha",
-        "Papel higiénico doméstico": "sub_celulosas_papel_higienico_domestico",
-        "Papel camilla y sanitario": "sub_celulosas_papel_camilla_sanitario",
-        "Pañuelos y toallitas": "sub_celulosas_panuelos_toallitas",
+        "Servilletas": ["sub_celulosas_servilletas"],
+        "Manteles y mantelines": ["sub_celulosas_manteles_mantelines"],
+        "Toallas": ["sub_celulosas_toallas"],
+        "Papel higiénico industrial / jumbo": ["sub_celulosas_papel_higienico_industrial_jumbo"],
+        "Bobinas y papel mecha": ["sub_celulosas_bobinas_papel_mecha"],
+        "Papel higiénico doméstico": ["sub_celulosas_papel_higienico_domestico"],
+        "Papel camilla y sanitario": ["sub_celulosas_papel_camilla_sanitario"],
+        "Pañuelos y toallitas": ["sub_celulosas_panuelos_toallitas"],
     }
-    nombre = mapa.get(str(subfamilia).strip())
-    if not nombre:
-        return None
-    for ext in [".png", ".jpg", ".jpeg", ".webp"]:
-        ruta = CARPETA_IMAGENES / f"{nombre}{ext}"
-        if ruta.exists():
-            return ruta
-    return None
+    bases = mapa.get(str(subfamilia).strip())
+    return buscar_imagen_por_bases(bases) if bases else None
 
 def _mtime_seguro(ruta):
     try:
