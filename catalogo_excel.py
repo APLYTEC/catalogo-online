@@ -12,7 +12,6 @@ from pathlib import Path
 
 ARCHIVO_EXCEL = "PRUEBA_CLASIFICADO.xlsx"
 CARPETA_IMAGENES = Path("imagenes")
-CARPETAS_IMAGENES_CANDIDATAS = [Path("imagenes"), Path("Imagenes"), Path("image"), Path("images")]
 
 EMAIL_REMITENTE = "jguzmanraya@gmail.com"
 EMAIL_DESTINO = "jguzmanraya@gmail.com"
@@ -58,35 +57,14 @@ UTILES_SUBFAMILIAS_ORDENADAS = [
     ("Pulverizadores, dosificación y señalización", "sub_utiles_pulverizadores_dosificacion_senalizacion.png"),
     ("Guantes y protección", "sub_utiles_guantes_proteccion.png"),
     ("Otros útiles y accesorios", "sub_utiles_otros_utiles_accesorios.png"),
+
+OTROS_SUBFAMILIAS_ORDENADAS = [
+    ("Otros", None),
 ]
 
-DESECHABLES_SUBFAMILIAS_ORDENADAS = [
-    ("Bolsas de basura y sacos", "sub_desechables_bolsas_basura_sacos.png"),
-    ("Bolsas alimentarias y uso especial", "sub_desechables_bolsas_alimentarias_uso_especial.png"),
-    ("Guantes desechables", "sub_desechables_guantes_desechables.png"),
-    ("Vestuario y protección desechable", "sub_desechables_vestuario_proteccion_desechable.png"),
-    ("Vajilla desechable y reutilizable", "sub_desechables_vajilla_desechable_reutilizable.png"),
-    ("Envases, tapas y tarrinas", "sub_desechables_envases_tapas_tarrinas.png"),
-    ("Films, aluminio y precintos", "sub_desechables_films_aluminio_precintos.png"),
-    ("Higiene y consumibles desechables", "sub_desechables_higiene_consumibles_desechables.png"),
+SERVICIOS_SUBFAMILIAS_ORDENADAS = [
+    ("Otros", None),
 ]
-
-EQUIPAMIENTO_SUBFAMILIAS_ORDENADAS = [
-    ("Dispensadores de jabón y gel", "sub_equipamiento_dispensadores_jabon_gel.png"),
-    ("Dispensadores de papel higiénico", "sub_equipamiento_dispensadores_papel_higienico.png"),
-    ("Dispensadores de toallas, mecha y servilletas", "sub_equipamiento_dispensadores_toallas_mecha_servilletas.png"),
-    ("Dosificación y dilución química", "sub_equipamiento_dosificacion_dilucion_quimica.png"),
-    ("Ambientación y urinarios", "sub_equipamiento_ambientacion_urinarios.png"),
-    ("Accesorios de baño y sala", "sub_equipamiento_accesorios_bano_sala.png"),
-    ("Carros, soportes y mobiliario auxiliar", "sub_equipamiento_carros_soportes_mobiliario_auxiliar.png"),
-    ("Otros equipamientos", "sub_equipamiento_otros_equipamientos.png"),
-]
-
-MAQUINAS_SUBFAMILIAS_ORDENADAS = [
-    ("Máquinas de limpieza de suelos", "sub_maquinas_limpieza_suelos.png"),
-    ("Lavado industrial, cocina y lavandería", "sub_maquinas_lavado_industrial_cocina_lavanderia.png"),
-    ("Dosificación, dilución y laboratorio", "sub_maquinas_dosificacion_dilucion_laboratorio.png"),
-    ("Repuestos, accesorios y SAT", "sub_maquinas_repuestos_accesorios_sat.png"),
 ]
 
 FAMILIAS_ORDENADAS = [
@@ -194,26 +172,6 @@ def cargar_datos():
     return df
 
 
-
-
-def buscar_imagen_por_bases(bases, extensiones=(".png", ".jpg", ".jpeg", ".webp", ".gif")):
-    if isinstance(bases, str):
-        bases = [bases]
-    carpetas = []
-    for carpeta in CARPETAS_IMAGENES_CANDIDATAS:
-        if carpeta not in carpetas:
-            carpetas.append(carpeta)
-    if CARPETA_IMAGENES not in carpetas:
-        carpetas.insert(0, CARPETA_IMAGENES)
-
-    for carpeta in carpetas:
-        for base in bases:
-            for ext in extensiones:
-                ruta = carpeta / f"{base}{ext}"
-                if ruta.exists():
-                    return ruta
-    return None
-
 def obtener_ruta_imagen_subfamilia_utiles(subfamilia):
     mapa = {
         "Bayetas, paños y estropajos": "sub_utiles_bayetas_panos_estropajos",
@@ -235,55 +193,21 @@ def obtener_ruta_imagen_subfamilia_utiles(subfamilia):
     return None
 
 
-def obtener_ruta_imagen_subfamilia_desechables(subfamilia):
-    mapa = {
-        "Bolsas de basura y sacos": "sub_desechables_bolsas_basura_sacos",
-        "Bolsas alimentarias y uso especial": "sub_desechables_bolsas_alimentarias_uso_especial",
-        "Guantes desechables": "sub_desechables_guantes_desechables",
-        "Vestuario y protección desechable": "sub_desechables_vestuario_proteccion_desechable",
-        "Vajilla desechable y reutilizable": "sub_desechables_vajilla_desechable_reutilizable",
-        "Envases, tapas y tarrinas": "sub_desechables_envases_tapas_tarrinas",
-        "Films, aluminio y precintos": "sub_desechables_films_aluminio_precintos",
-        "Higiene y consumibles desechables": "sub_desechables_higiene_consumibles_desechables",
-    }
-    base = mapa.get(str(subfamilia).strip())
-    if not base:
-        return None
-    for suf in [".png", ".jpg", ".jpeg", ".webp"]:
-        ruta = CARPETA_IMAGENES / f"{base}{suf}"
-        if ruta.exists():
-            return ruta
-    return None
 
 
-def obtener_ruta_imagen_subfamilia_equipamiento(subfamilia):
-    mapa = {
-        "Dispensadores de jabón y gel": ["sub_equipamiento_dispensadores_jabon_gel"],
-        "Dispensadores de papel higiénico": ["sub_equipamiento_dispensadores_papel_higienico"],
-        "Dispensadores de toallas, mecha y servilletas": ["sub_equipamiento_dispensadores_toallas_mecha_servilletas"],
-        "Dosificación y dilución química": ["sub_equipamiento_dosificacion_dilucion_quimica"],
-        "Ambientación y urinarios": ["sub_equipamiento_ambientacion_urinarios"],
-        "Accesorios de baño y sala": ["sub_equipamiento_accesorios_bano_sala"],
-        "Carros, soportes y mobiliario auxiliar": ["sub_equipamiento_carros_soportes_mobiliario_auxiliar"],
-        "Otros equipamientos": ["sub_equipamiento_otros_equipamientos"],
-    }
-    bases = mapa.get(str(subfamilia).strip())
-    return buscar_imagen_por_bases(bases) if bases else None
+def obtener_ruta_imagen_subfamilia_otros(_subfamilia):
+    return obtener_ruta_imagen_familia("Otros")
 
 
-def obtener_ruta_imagen_subfamilia_maquinas(subfamilia):
-    mapa = {
-        "Máquinas de limpieza de suelos": ["sub_maquinas_limpieza_suelos"],
-        "Lavado industrial, cocina y lavandería": ["sub_maquinas_lavado_industrial_cocina_lavanderia"],
-        "Dosificación, dilución y laboratorio": ["sub_maquinas_dosificacion_dilucion_laboratorio"],
-        "Repuestos, accesorios y SAT": ["sub_maquinas_repuestos_accesorios_sat"],
-    }
-    bases = mapa.get(str(subfamilia).strip())
-    return buscar_imagen_por_bases(bases) if bases else None
-
+def obtener_ruta_imagen_subfamilia_servicios(_subfamilia):
+    return obtener_ruta_imagen_familia("Servicios")
 
 def obtener_ruta_imagen_producto(codigo):
-    return str(buscar_imagen_por_bases(str(codigo), extensiones=(".jpg", ".jpeg", ".png", ".webp", ".gif"))) if buscar_imagen_por_bases(str(codigo), extensiones=(".jpg", ".jpeg", ".png", ".webp", ".gif")) else None
+    for ext in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
+        ruta = CARPETA_IMAGENES / f"{codigo}{ext}"
+        if ruta.exists():
+            return str(ruta)
+    return None
 
 
 def obtener_ruta_imagen_familia(nombre_familia):
@@ -291,40 +215,56 @@ def obtener_ruta_imagen_familia(nombre_familia):
     fam_id = info.get("id")
     if fam_id is None:
         return None
-    return buscar_imagen_por_bases(f"familia_{fam_id}")
+    for ext in [".png", ".jpg", ".jpeg", ".webp"]:
+        ruta = CARPETA_IMAGENES / f"familia_{fam_id}{ext}"
+        if ruta.exists():
+            return ruta
+    return None
 
 
 
 
 def obtener_ruta_imagen_subfamilia_quimicos(subfamilia):
     mapa = {
-        "Lavavajillas": ["sub_quimicos_lavavajillas"],
-        "Desengrasantes": ["sub_quimicos_desengrasantes"],
-        "Suelos y superficies": ["sub_quimicos_suelos_superficies"],
-        "Baños y sanitarios": ["sub_quimicos_banos_sanitarios"],
-        "Desinfección": ["sub_quimicos_desinfeccion"],
-        "Lavandería": ["sub_quimicos_lavanderia"],
-        "Ambientadores": ["sub_quimicos_ambientadores"],
-        "Aseo personal": ["sub_quimicos_aseo_personal"],
+        "Lavavajillas": "sub_quimicos_lavavajillas",
+        "Desengrasantes": "sub_quimicos_desengrasantes",
+        "Suelos y superficies": "sub_quimicos_suelos_superficies",
+        "Baños y sanitarios": "sub_quimicos_banos_sanitarios",
+        "Desinfección": "sub_quimicos_desinfeccion",
+        "Lavandería": "sub_quimicos_lavanderia",
+        "Ambientadores": "sub_quimicos_ambientadores",
+        "Aseo personal": "sub_quimicos_aseo_personal",
     }
-    bases = mapa.get(str(subfamilia).strip())
-    return buscar_imagen_por_bases(bases) if bases else None
+    nombre = mapa.get(str(subfamilia).strip())
+    if not nombre:
+        return None
+    for ext in [".png", ".jpg", ".jpeg", ".webp"]:
+        ruta = CARPETA_IMAGENES / f"{nombre}{ext}"
+        if ruta.exists():
+            return ruta
+    return None
 
 
 
 def obtener_ruta_imagen_subfamilia_celulosas(subfamilia):
     mapa = {
-        "Servilletas": ["sub_celulosas_servilletas"],
-        "Manteles y mantelines": ["sub_celulosas_manteles_mantelines"],
-        "Toallas": ["sub_celulosas_toallas"],
-        "Papel higiénico industrial / jumbo": ["sub_celulosas_papel_higienico_industrial_jumbo"],
-        "Bobinas y papel mecha": ["sub_celulosas_bobinas_papel_mecha"],
-        "Papel higiénico doméstico": ["sub_celulosas_papel_higienico_domestico"],
-        "Papel camilla y sanitario": ["sub_celulosas_papel_camilla_sanitario"],
-        "Pañuelos y toallitas": ["sub_celulosas_panuelos_toallitas"],
+        "Servilletas": "sub_celulosas_servilletas",
+        "Manteles y mantelines": "sub_celulosas_manteles_mantelines",
+        "Toallas": "sub_celulosas_toallas",
+        "Papel higiénico industrial / jumbo": "sub_celulosas_papel_higienico_industrial_jumbo",
+        "Bobinas y papel mecha": "sub_celulosas_bobinas_papel_mecha",
+        "Papel higiénico doméstico": "sub_celulosas_papel_higienico_domestico",
+        "Papel camilla y sanitario": "sub_celulosas_papel_camilla_sanitario",
+        "Pañuelos y toallitas": "sub_celulosas_panuelos_toallitas",
     }
-    bases = mapa.get(str(subfamilia).strip())
-    return buscar_imagen_por_bases(bases) if bases else None
+    nombre = mapa.get(str(subfamilia).strip())
+    if not nombre:
+        return None
+    for ext in [".png", ".jpg", ".jpeg", ".webp"]:
+        ruta = CARPETA_IMAGENES / f"{nombre}{ext}"
+        if ruta.exists():
+            return ruta
+    return None
 
 def _mtime_seguro(ruta):
     try:
@@ -746,6 +686,23 @@ def render_contacto():
 
 
 
+
+
+def render_rejilla_subfamilias_otros():
+    subfamilia = "Otros"
+    img = obtener_ruta_imagen_subfamilia_otros(subfamilia)
+    cols = st.columns(3)
+    with cols[0]:
+        render_boton_subfamilia(subfamilia, img, "otros")
+
+
+def render_rejilla_subfamilias_servicios():
+    subfamilia = "Otros"
+    img = obtener_ruta_imagen_subfamilia_servicios(subfamilia)
+    cols = st.columns(3)
+    with cols[0]:
+        render_boton_subfamilia(subfamilia, img, "servicios")
+
 def render_carrito():
     st.markdown("## 🛒 Mi carrito")
     c1, c2 = st.columns([1.8, 1])
@@ -990,45 +947,6 @@ def render_rejilla_subfamilias_utiles():
     render_rejilla_component(items)
 
 
-def render_rejilla_subfamilias_desechables():
-    items = []
-    for subfamilia, _archivo in DESECHABLES_SUBFAMILIAS_ORDENADAS:
-        img = obtener_ruta_imagen_subfamilia_desechables(subfamilia)
-        items.append({
-            "href": qp_url(pantalla="catalogo", familia="Desechables", subfamilia=subfamilia),
-            "alt": subfamilia,
-            "img": imagen_data_uri(img) if img and img.exists() else None,
-            "fallback": subfamilia,
-        })
-    render_rejilla_component(items)
-
-
-def render_rejilla_subfamilias_equipamiento():
-    items = []
-    for subfamilia, _archivo in EQUIPAMIENTO_SUBFAMILIAS_ORDENADAS:
-        img = obtener_ruta_imagen_subfamilia_equipamiento(subfamilia)
-        items.append({
-            "href": qp_url(pantalla="catalogo", familia="Equipamiento", subfamilia=subfamilia),
-            "alt": subfamilia,
-            "img": imagen_data_uri(img) if img and img.exists() else None,
-            "fallback": subfamilia,
-        })
-    render_rejilla_component(items)
-
-
-def render_rejilla_subfamilias_maquinas():
-    items = []
-    for subfamilia, _archivo in MAQUINAS_SUBFAMILIAS_ORDENADAS:
-        img = obtener_ruta_imagen_subfamilia_maquinas(subfamilia)
-        items.append({
-            "href": qp_url(pantalla="catalogo", familia="Máquinas", subfamilia=subfamilia),
-            "alt": subfamilia,
-            "img": imagen_data_uri(img) if img and img.exists() else None,
-            "fallback": subfamilia,
-        })
-    render_rejilla_component(items)
-
-
 def construir_mapa_cantidades_carrito():
     cantidades = {}
     for item in st.session_state.carrito:
@@ -1190,18 +1108,6 @@ def render_catalogo(df):
             if familia_actual == "Útiles":
                 st.markdown("### Selecciona una subfamilia")
                 render_rejilla_subfamilias_utiles()
-                return
-            if familia_actual == "Desechables":
-                st.markdown("### Selecciona una subfamilia")
-                render_rejilla_subfamilias_desechables()
-                return
-            if familia_actual == "Equipamiento":
-                st.markdown("### Selecciona una subfamilia")
-                render_rejilla_subfamilias_equipamiento()
-                return
-            if familia_actual == "Máquinas":
-                st.markdown("### Selecciona una subfamilia")
-                render_rejilla_subfamilias_maquinas()
                 return
             subfamilias = (
                 df[df["Familia"] == familia_actual]["Subfamilia"]
