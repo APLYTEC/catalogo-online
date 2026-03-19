@@ -12,6 +12,7 @@ from pathlib import Path
 
 ARCHIVO_EXCEL = "PRUEBA_CLASIFICADO.xlsx"
 CARPETA_IMAGENES = Path("imagenes")
+CARPETAS_IMAGENES_CANDIDATAS = [Path("imagenes"), Path("Imagenes"), Path("image"), Path("images")]
 
 EMAIL_REMITENTE = "jguzmanraya@gmail.com"
 EMAIL_DESTINO = "jguzmanraya@gmail.com"
@@ -57,6 +58,43 @@ UTILES_SUBFAMILIAS_ORDENADAS = [
     ("Pulverizadores, dosificación y señalización", "sub_utiles_pulverizadores_dosificacion_senalizacion.png"),
     ("Guantes y protección", "sub_utiles_guantes_proteccion.png"),
     ("Otros útiles y accesorios", "sub_utiles_otros_utiles_accesorios.png"),
+]
+
+DESECHABLES_SUBFAMILIAS_ORDENADAS = [
+    ("Bolsas de basura y sacos", "sub_desechables_bolsas_basura_sacos.png"),
+    ("Bolsas alimentarias y uso especial", "sub_desechables_bolsas_alimentarias_uso_especial.png"),
+    ("Guantes desechables", "sub_desechables_guantes_desechables.png"),
+    ("Vestuario y protección desechable", "sub_desechables_vestuario_proteccion_desechable.png"),
+    ("Vajilla desechable y reutilizable", "sub_desechables_vajilla_desechable_reutilizable.png"),
+    ("Envases, tapas y tarrinas", "sub_desechables_envases_tapas_tarrinas.png"),
+    ("Films, aluminio y precintos", "sub_desechables_films_aluminio_precintos.png"),
+    ("Higiene y consumibles desechables", "sub_desechables_higiene_consumibles_desechables.png"),
+]
+
+EQUIPAMIENTO_SUBFAMILIAS_ORDENADAS = [
+    ("Dispensadores de jabón y gel", "sub_equipamiento_dispensadores_jabon_gel.png"),
+    ("Dispensadores de papel higiénico", "sub_equipamiento_dispensadores_papel_higienico.png"),
+    ("Dispensadores de toallas, mecha y servilletas", "sub_equipamiento_dispensadores_toallas_mecha_servilletas.png"),
+    ("Dosificación y dilución química", "sub_equipamiento_dosificacion_dilucion_quimica.png"),
+    ("Ambientación y urinarios", "sub_equipamiento_ambientacion_urinarios.png"),
+    ("Accesorios de baño y sala", "sub_equipamiento_accesorios_bano_sala.png"),
+    ("Carros, soportes y mobiliario auxiliar", "sub_equipamiento_carros_soportes_mobiliario_auxiliar.png"),
+    ("Otros equipamientos", "sub_equipamiento_otros_equipamientos.png"),
+]
+
+MAQUINAS_SUBFAMILIAS_ORDENADAS = [
+    ("Máquinas de limpieza de suelos", "sub_maquinas_limpieza_suelos.png"),
+    ("Lavado industrial, cocina y lavandería", "sub_maquinas_lavado_industrial_cocina_lavanderia.png"),
+    ("Dosificación, dilución y laboratorio", "sub_maquinas_dosificacion_dilucion_laboratorio.png"),
+    ("Repuestos, accesorios y SAT", "sub_maquinas_repuestos_accesorios_sat.png"),
+]
+
+OTROS_SUBFAMILIAS_ORDENADAS = [
+    ("Otros", "familia_7.png"),
+]
+
+SERVICIOS_SUBFAMILIAS_ORDENADAS = [
+    ("Otros", "familia_9.png"),
 ]
 
 FAMILIAS_ORDENADAS = [
@@ -164,27 +202,6 @@ def cargar_datos():
     return df
 
 
-def obtener_ruta_imagen_subfamilia_utiles(subfamilia):
-    mapa = {
-        "Bayetas, paños y estropajos": "sub_utiles_bayetas_panos_estropajos",
-        "Mopas, fregonas y recambios": "sub_utiles_mopas_fregonas_recambios",
-        "Escobas, cepillos y recogedores": "sub_utiles_escobas_cepillos_recogedores",
-        "Limpiacristales y útiles de cristalería": "sub_utiles_limpiacristales_utiles_cristaleria",
-        "Cubos, carros y escurridores": "sub_utiles_cubos_carros_escurridores",
-        "Pulverizadores, dosificación y señalización": "sub_utiles_pulverizadores_dosificacion_senalizacion",
-        "Guantes y protección": "sub_utiles_guantes_proteccion",
-        "Otros útiles y accesorios": "sub_utiles_otros_utiles_accesorios",
-    }
-    base = mapa.get(str(subfamilia).strip())
-    if not base:
-        return None
-    for suf in [".png", ".jpg", ".jpeg", ".webp"]:
-        ruta = CARPETA_IMAGENES / f"{base}{suf}"
-        if ruta.exists():
-            return ruta
-    return None
-
-
 def obtener_ruta_imagen_producto(codigo):
     for ext in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
         ruta = CARPETA_IMAGENES / f"{codigo}{ext}"
@@ -227,6 +244,61 @@ def obtener_ruta_imagen_subfamilia_quimicos(subfamilia):
             return ruta
     return None
 
+def buscar_imagen_por_bases(bases, extensiones=(".png", ".jpg", ".jpeg", ".webp", ".gif")):
+    if isinstance(bases, str):
+        bases = [bases]
+    carpetas = []
+    for carpeta in CARPETAS_IMAGENES_CANDIDATAS:
+        if carpeta not in carpetas:
+            carpetas.append(carpeta)
+    if CARPETA_IMAGENES not in carpetas:
+        carpetas.insert(0, CARPETA_IMAGENES)
+
+    for carpeta in carpetas:
+        for base in bases:
+            base = str(base)
+            if Path(base).suffix:
+                ruta_directa = carpeta / base
+                if ruta_directa.exists():
+                    return ruta_directa
+            for ext in extensiones:
+                ruta = carpeta / f"{base}{ext}"
+                if ruta.exists():
+                    return ruta
+    return None
+
+
+def obtener_ruta_imagen_producto(codigo):
+    return buscar_imagen_por_bases(str(codigo).strip())
+
+
+def obtener_ruta_imagen_familia(nombre_familia):
+    info = FAMILIAS.get(nombre_familia, {})
+    fam_id = info.get("id")
+    if fam_id is None:
+        return None
+    return buscar_imagen_por_bases(f"familia_{fam_id}")
+
+
+def _obtener_ruta_desde_mapa(subfamilia, mapa):
+    base = mapa.get(str(subfamilia).strip())
+    if not base:
+        return None
+    return buscar_imagen_por_bases(base)
+
+
+def obtener_ruta_imagen_subfamilia_quimicos(subfamilia):
+    mapa = {
+        "Lavavajillas": "sub_quimicos_lavavajillas",
+        "Desengrasantes": "sub_quimicos_desengrasantes",
+        "Suelos y superficies": "sub_quimicos_suelos_superficies",
+        "Baños y sanitarios": "sub_quimicos_banos_sanitarios",
+        "Desinfección": "sub_quimicos_desinfeccion",
+        "Lavandería": "sub_quimicos_lavanderia",
+        "Ambientadores": "sub_quimicos_ambientadores",
+        "Aseo personal": "sub_quimicos_aseo_personal",
+    }
+    return _obtener_ruta_desde_mapa(subfamilia, mapa)
 
 
 def obtener_ruta_imagen_subfamilia_celulosas(subfamilia):
@@ -240,14 +312,68 @@ def obtener_ruta_imagen_subfamilia_celulosas(subfamilia):
         "Papel camilla y sanitario": "sub_celulosas_papel_camilla_sanitario",
         "Pañuelos y toallitas": "sub_celulosas_panuelos_toallitas",
     }
-    nombre = mapa.get(str(subfamilia).strip())
-    if not nombre:
-        return None
-    for ext in [".png", ".jpg", ".jpeg", ".webp"]:
-        ruta = CARPETA_IMAGENES / f"{nombre}{ext}"
-        if ruta.exists():
-            return ruta
-    return None
+    return _obtener_ruta_desde_mapa(subfamilia, mapa)
+
+
+def obtener_ruta_imagen_subfamilia_utiles(subfamilia):
+    mapa = {
+        "Bayetas, paños y estropajos": "sub_utiles_bayetas_panos_estropajos",
+        "Mopas, fregonas y recambios": "sub_utiles_mopas_fregonas_recambios",
+        "Escobas, cepillos y recogedores": "sub_utiles_escobas_cepillos_recogedores",
+        "Limpiacristales y útiles de cristalería": "sub_utiles_limpiacristales_utiles_cristaleria",
+        "Cubos, carros y escurridores": "sub_utiles_cubos_carros_escurridores",
+        "Pulverizadores, dosificación y señalización": "sub_utiles_pulverizadores_dosificacion_senalizacion",
+        "Guantes y protección": "sub_utiles_guantes_proteccion",
+        "Otros útiles y accesorios": "sub_utiles_otros_utiles_accesorios",
+    }
+    return _obtener_ruta_desde_mapa(subfamilia, mapa)
+
+
+def obtener_ruta_imagen_subfamilia_desechables(subfamilia):
+    mapa = {
+        "Bolsas de basura y sacos": "sub_desechables_bolsas_basura_sacos",
+        "Bolsas alimentarias y uso especial": "sub_desechables_bolsas_alimentarias_uso_especial",
+        "Guantes desechables": "sub_desechables_guantes_desechables",
+        "Vestuario y protección desechable": "sub_desechables_vestuario_proteccion_desechable",
+        "Vajilla desechable y reutilizable": "sub_desechables_vajilla_desechable_reutilizable",
+        "Envases, tapas y tarrinas": "sub_desechables_envases_tapas_tarrinas",
+        "Films, aluminio y precintos": "sub_desechables_films_aluminio_precintos",
+        "Higiene y consumibles desechables": "sub_desechables_higiene_consumibles_desechables",
+    }
+    return _obtener_ruta_desde_mapa(subfamilia, mapa)
+
+
+def obtener_ruta_imagen_subfamilia_equipamiento(subfamilia):
+    mapa = {
+        "Dispensadores de jabón y gel": "sub_equipamiento_dispensadores_jabon_gel",
+        "Dispensadores de papel higiénico": "sub_equipamiento_dispensadores_papel_higienico",
+        "Dispensadores de toallas, mecha y servilletas": "sub_equipamiento_dispensadores_toallas_mecha_servilletas",
+        "Dosificación y dilución química": "sub_equipamiento_dosificacion_dilucion_quimica",
+        "Ambientación y urinarios": "sub_equipamiento_ambientacion_urinarios",
+        "Accesorios de baño y sala": "sub_equipamiento_accesorios_bano_sala",
+        "Carros, soportes y mobiliario auxiliar": "sub_equipamiento_carros_soportes_mobiliario_auxiliar",
+        "Otros equipamientos": "sub_equipamiento_otros_equipamientos",
+    }
+    return _obtener_ruta_desde_mapa(subfamilia, mapa)
+
+
+def obtener_ruta_imagen_subfamilia_maquinas(subfamilia):
+    mapa = {
+        "Máquinas de limpieza de suelos": "sub_maquinas_limpieza_suelos",
+        "Lavado industrial, cocina y lavandería": "sub_maquinas_lavado_industrial_cocina_lavanderia",
+        "Dosificación, dilución y laboratorio": "sub_maquinas_dosificacion_dilucion_laboratorio",
+        "Repuestos, accesorios y SAT": "sub_maquinas_repuestos_accesorios_sat",
+    }
+    return _obtener_ruta_desde_mapa(subfamilia, mapa)
+
+
+def obtener_ruta_imagen_subfamilia_otros(_subfamilia):
+    return obtener_ruta_imagen_familia("Otros")
+
+
+def obtener_ruta_imagen_subfamilia_servicios(_subfamilia):
+    return obtener_ruta_imagen_familia("Servicios")
+
 
 def _mtime_seguro(ruta):
     try:
@@ -495,6 +621,7 @@ def volver_a_subfamilias():
 
 
 def render_menu_superior():
+    total = total_items_carrito()
     st.markdown(
         """
         <style>
@@ -535,27 +662,19 @@ def render_menu_superior():
             margin:0 auto;
             color:#3e5140;
         }
-        .hero-info-box {
-            max-width: 760px;
-            margin: 1.4rem auto 0 auto;
-            background: rgba(255,255,255,.72);
+        .hero-mini-grid {
+            display:grid;
+            grid-template-columns: repeat(3, minmax(0,1fr));
+            gap:.8rem;
+            margin-top:1.4rem;
+        }
+        .hero-mini-card {
+            background: rgba(255,255,255,.78);
             border:1px solid #dfeedd;
-            border-radius:20px;
-            padding:1rem 1.1rem;
-            text-align:left;
-        }
-        .hero-info-title {
-            margin:0 0 .55rem 0;
-            font-size:1rem;
-            font-weight:700;
-            color:#355e2b;
-        }
-        .hero-info-list {
-            margin:0;
-            padding-left:1.2rem;
-            color:#355e2b;
-            line-height:1.7;
+            border-radius:18px;
+            padding:.9rem;
             font-weight:600;
+            color:#355e2b;
         }
         .contact-card {
             background: linear-gradient(135deg, #f8fbf8 0%, #eef7eb 100%);
@@ -564,19 +683,38 @@ def render_menu_superior():
             padding:1.25rem;
             box-shadow: 0 8px 20px rgba(0,0,0,.05);
         }
+        .cta-band {
+            background:#355e2b;
+            color:white;
+            border-radius:22px;
+            padding:1.2rem 1.2rem;
+            box-shadow: 0 12px 26px rgba(53,94,43,.22);
+        }
+        .cta-band p, .cta-band h3 {color:white; margin:0;}
         .topbar-btn button {height: 48px; font-weight: 700;}
+        @media (max-width: 900px) {
+            .hero-mini-grid {grid-template-columns: 1fr;}
+        }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    b1, b2 = st.columns([1.1, 4.9])
+    b1, b2, b3, b4 = st.columns([1.1, 1.1, 1.1, 1.2])
     with b1:
-        if st.button("🏠 Ir a inicio", use_container_width=True, key="top_inicio"):
+        if st.button("🏠 Inicio", use_container_width=True, key="top_inicio"):
             ir_a_inicio()
             st.rerun()
     with b2:
-        st.markdown("<div style='height:48px;'></div>", unsafe_allow_html=True)
+        if st.button("📦 Ver productos", use_container_width=True, key="top_productos"):
+            ir_a_catalogo()
+            st.rerun()
+    with b3:
+        if st.button(f"🛒 Mi carrito ({total})", use_container_width=True, key="top_carrito"):
+            ir_a_carrito()
+            st.rerun()
+    with b4:
+        st.link_button("💬 WhatsApp", WHATSAPP_LINK, use_container_width=True)
 
     st.markdown("<div style='margin-top:0.3rem'></div>", unsafe_allow_html=True)
 
@@ -591,13 +729,10 @@ def render_inicio():
             <img src='{logo_src}' style='width: min(430px, 82%); margin-bottom: 1rem;' />
             <h1 class='hero-title'>Haz tu pedido online</h1>
             <p class='hero-subtitle'>Accede al catálogo de Aplytec de forma rápida y sencilla. Encuentra lo que necesitas, añádelo al carrito y envía tu pedido desde el móvil en pocos pasos.</p>
-            <div class='hero-info-box'>
-                <div class='hero-info-title'>Ventajas del catálogo</div>
-                <ul class='hero-info-list'>
-                    <li>Productos organizados por familias</li>
-                    <li>Compra rápida y clara</li>
-                    <li>Preparación del pedido en pocos pasos</li>
-                </ul>
+            <div class='hero-mini-grid'>
+                <div class='hero-mini-card'>📦 Productos organizados por familias</div>
+                <div class='hero-mini-card'>🛒 Compra rápida y clara</div>
+                <div class='hero-mini-card'>💬 Atención directa por WhatsApp</div>
             </div>
         </div>
         """,
@@ -605,7 +740,7 @@ def render_inicio():
     )
 
     st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
-    render_aply(APLY_SALUDA, "Hola, soy Aply. Entra en el catálogo pulsando el botón 'Ver productos' y prepara tu pedido en pocos pasos.", altura=280)
+    render_aply(APLY_SALUDA, "Hola, soy Aply. Entra al catálogo y prepara tu pedido en pocos pasos.", altura=280)
 
     st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
@@ -623,9 +758,17 @@ def render_inicio():
             st.rerun()
 
     st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
-    cta_spacer, cta2 = st.columns([1.8, 1.2])
-    with cta_spacer:
-        st.markdown("<div></div>", unsafe_allow_html=True)
+    cta1, cta2 = st.columns([1.8, 1.2])
+    with cta1:
+        st.markdown(
+            """
+            <div class='cta-band'>
+                <h3>Escanea, entra y pide</h3>
+                <p style='margin-top:.35rem;'>Ideal para panfletos y clientes: acceso directo al catálogo, navegación fácil y contacto inmediato.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     with cta2:
         st.link_button("💬 Pedir por WhatsApp", WHATSAPP_LINK, use_container_width=True)
 
@@ -913,76 +1056,77 @@ def render_rejilla_subfamilias_utiles():
     render_rejilla_component(items)
 
 
+def render_rejilla_subfamilias_desechables():
+    items = []
+    for subfamilia, _archivo in DESECHABLES_SUBFAMILIAS_ORDENADAS:
+        img = obtener_ruta_imagen_subfamilia_desechables(subfamilia)
+        items.append({
+            "href": qp_url(pantalla="catalogo", familia="Desechables", subfamilia=subfamilia),
+            "alt": subfamilia,
+            "img": imagen_data_uri(img) if img and img.exists() else None,
+            "fallback": subfamilia,
+        })
+    render_rejilla_component(items)
+
+
+def render_rejilla_subfamilias_equipamiento():
+    items = []
+    for subfamilia, _archivo in EQUIPAMIENTO_SUBFAMILIAS_ORDENADAS:
+        img = obtener_ruta_imagen_subfamilia_equipamiento(subfamilia)
+        items.append({
+            "href": qp_url(pantalla="catalogo", familia="Equipamiento", subfamilia=subfamilia),
+            "alt": subfamilia,
+            "img": imagen_data_uri(img) if img and img.exists() else None,
+            "fallback": subfamilia,
+        })
+    render_rejilla_component(items)
+
+
+def render_rejilla_subfamilias_maquinas():
+    items = []
+    for subfamilia, _archivo in MAQUINAS_SUBFAMILIAS_ORDENADAS:
+        img = obtener_ruta_imagen_subfamilia_maquinas(subfamilia)
+        items.append({
+            "href": qp_url(pantalla="catalogo", familia="Máquinas", subfamilia=subfamilia),
+            "alt": subfamilia,
+            "img": imagen_data_uri(img) if img and img.exists() else None,
+            "fallback": subfamilia,
+        })
+    render_rejilla_component(items)
+
+
+def render_rejilla_subfamilias_otros():
+    items = []
+    for subfamilia, _archivo in OTROS_SUBFAMILIAS_ORDENADAS:
+        img = obtener_ruta_imagen_subfamilia_otros(subfamilia)
+        items.append({
+            "href": qp_url(pantalla="catalogo", familia="Otros", subfamilia=subfamilia),
+            "alt": subfamilia,
+            "img": imagen_data_uri(img) if img and img.exists() else None,
+            "fallback": subfamilia,
+        })
+    render_rejilla_component(items)
+
+
+def render_rejilla_subfamilias_servicios():
+    items = []
+    for subfamilia, _archivo in SERVICIOS_SUBFAMILIAS_ORDENADAS:
+        img = obtener_ruta_imagen_subfamilia_servicios(subfamilia)
+        items.append({
+            "href": qp_url(pantalla="catalogo", familia="Servicios", subfamilia=subfamilia),
+            "alt": subfamilia,
+            "img": imagen_data_uri(img) if img and img.exists() else None,
+            "fallback": subfamilia,
+        })
+    render_rejilla_component(items)
+
+
 def construir_mapa_cantidades_carrito():
     cantidades = {}
     for item in st.session_state.carrito:
         clave = (str(item["Código"]), str(item["Tipo"]))
         cantidades[clave] = cantidades.get(clave, 0) + int(item["Cantidad"])
     return cantidades
-
-
-
-def render_producto_compacto(fila, prefijo_key="compacto"):
-    precio_con_iva = float(fila["Precio"])
-    precio_sin_iva = precio_con_iva / (1 + IVA) if precio_con_iva else 0
-    cantidades_carrito = construir_mapa_cantidades_carrito()
-
-    st.markdown("<div style='padding:0.2rem 0;'></div>", unsafe_allow_html=True)
-    c1, c2 = st.columns([0.8, 3.8])
-
-    with c1:
-        ruta_img = obtener_ruta_imagen_producto(fila["Código"])
-        if ruta_img:
-            st.image(ruta_img, width=78)
-        else:
-            st.markdown(
-                "<div style='height:78px; border:1px solid #d9e2ef; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:0.82rem; color:#6b7280;'>Sin imagen</div>",
-                unsafe_allow_html=True,
-            )
-
-    with c2:
-        st.markdown(
-            f"""
-            <div style="font-weight:700; font-size:1rem; line-height:1.2; margin-bottom:0.2rem;">{fila['Nombre']}</div>
-            <div style="font-size:0.84rem; color:#475569; margin-bottom:0.2rem;">Código: {fila['Código']}</div>
-            <div style="font-size:0.88rem; margin-bottom:0.35rem;">
-                <span style="color:#475569;">Sin IVA:</span> <strong>{precio_sin_iva:.2f} €</strong>
-                &nbsp;·&nbsp;
-                <span style="color:#475569;">Con IVA:</span> <strong>{precio_con_iva:.2f} €</strong>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        kbase = f"{prefijo_key}_{fila['Código']}"
-        f1, f2, f3, f4, f5 = st.columns([1.5, 0.8, 0.8, 1.1, 1.3])
-        with f1:
-            tipo = st.radio(
-                "Formato",
-                FORMATOS,
-                horizontal=True,
-                key=f"tipo_{kbase}",
-                label_visibility="collapsed",
-            )
-
-        qty_actual = cantidades_carrito.get((str(fila["Código"]), str(tipo)), 0)
-
-        with f2:
-            if st.button("-1", key=f"menos_{kbase}_{tipo}", use_container_width=True):
-                quitar_del_carrito(fila["Código"], tipo, 1)
-                st.rerun()
-        with f3:
-            if st.button("+1", key=f"mas_{kbase}_{tipo}", use_container_width=True):
-                agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
-                st.rerun()
-        with f4:
-            st.markdown(f"<div style='text-align:center; font-size:0.9rem; padding-top:0.35rem;'><strong>{qty_actual}</strong> en carrito</div>", unsafe_allow_html=True)
-        with f5:
-            if st.button("Añadir 5", key=f"add5_{kbase}_{tipo}", use_container_width=True):
-                agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
-                st.rerun()
-
-    st.markdown("<hr style='margin:0.45rem 0 0.55rem 0; border:0; border-top:1px solid #e5e7eb;'>", unsafe_allow_html=True)
 
 def render_catalogo(df):
     busqueda_global = st.text_input("🔎 Buscar producto por nombre o código", key="busqueda_global_catalogo")
@@ -1139,6 +1283,26 @@ def render_catalogo(df):
                 st.markdown("### Selecciona una subfamilia")
                 render_rejilla_subfamilias_utiles()
                 return
+            if familia_actual == "Desechables":
+                st.markdown("### Selecciona una subfamilia")
+                render_rejilla_subfamilias_desechables()
+                return
+            if familia_actual == "Equipamiento":
+                st.markdown("### Selecciona una subfamilia")
+                render_rejilla_subfamilias_equipamiento()
+                return
+            if familia_actual == "Máquinas":
+                st.markdown("### Selecciona una subfamilia")
+                render_rejilla_subfamilias_maquinas()
+                return
+            if familia_actual == "Otros":
+                st.markdown("### Selecciona una subfamilia")
+                render_rejilla_subfamilias_otros()
+                return
+            if familia_actual == "Servicios":
+                st.markdown("### Selecciona una subfamilia")
+                render_rejilla_subfamilias_servicios()
+                return
             subfamilias = (
                 df[df["Familia"] == familia_actual]["Subfamilia"]
                 .dropna()
@@ -1185,14 +1349,94 @@ def render_catalogo(df):
             | productos["Código"].astype(str).str.contains(busqueda_subfamilia, case=False, na=False)
         ].copy()
 
-    render_aply(APLY_SENALA, "Listado compacto: toca +1 o Añadir 5 para meter productos en tu pedido.", altura=190)
+    render_aply(APLY_SENALA, "Pulsa +1 o Añadir 5 para meter productos en tu pedido.", altura=190)
 
-    if productos.empty:
-        st.info("No hay productos en esta subfamilia.")
-        return
+    st.markdown(
+        """
+        <style>
+        .aply-producto-compacto {
+            border:1px solid #e6efe2;
+            border-radius:18px;
+            padding:.7rem .75rem;
+            margin:.45rem 0;
+            background:#ffffff;
+            box-shadow:0 5px 14px rgba(0,0,0,.04);
+        }
+        .aply-producto-compacto .nombre {
+            font-weight:700;
+            color:#1f2a1f;
+            line-height:1.2;
+            margin-bottom:.2rem;
+            font-size:1rem;
+        }
+        .aply-producto-compacto .meta {
+            color:#4e5f50;
+            font-size:.92rem;
+            line-height:1.35;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    cantidades_carrito = construir_mapa_cantidades_carrito()
 
     for _, fila in productos.iterrows():
-        render_producto_compacto(fila, prefijo_key=f"sub_{familia_actual}_{subfamilia_actual}")
+        precio_con_iva = float(fila["Precio"])
+        precio_sin_iva = precio_con_iva / (1 + IVA) if precio_con_iva else 0
+        ruta_img = obtener_ruta_imagen_producto(fila["Código"])
+
+        st.markdown('<div class="aply-producto-compacto">', unsafe_allow_html=True)
+        c1, c2 = st.columns([0.9, 3.2])
+
+        with c1:
+            if ruta_img:
+                st.image(ruta_img, width=95)
+            else:
+                st.markdown(
+                    """
+                    <div style="width:95px;height:95px;border-radius:14px;background:linear-gradient(135deg,#f8fbf8,#eef7eb);display:flex;align-items:center;justify-content:center;font-size:2rem;border:1px solid #e6efe2;">📦</div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+        with c2:
+            st.markdown(
+                f"""
+                <div class="nombre">{fila['Nombre']}</div>
+                <div class="meta">
+                    Código: {fila['Código']}<br>
+                    Sin IVA: {precio_sin_iva:.2f} € · Con IVA: {precio_con_iva:.2f} €
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            s1, s2, s3, s4 = st.columns([1.35, 0.9, 0.9, 1.15])
+            with s1:
+                tipo = st.selectbox(
+                    "Formato",
+                    FORMATOS,
+                    key=f"tipo_{fila['Código']}",
+                    label_visibility="collapsed",
+                )
+            qty_actual = cantidades_carrito.get((str(fila["Código"]), str(tipo)), 0)
+            with s2:
+                if st.button("-1", key=f"menos_{fila['Código']}_{tipo}", use_container_width=True):
+                    quitar_del_carrito(fila["Código"], tipo, 1)
+                    st.rerun()
+            with s3:
+                if st.button("+1", key=f"mas_{fila['Código']}_{tipo}", use_container_width=True):
+                    agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
+                    st.rerun()
+            with s4:
+                if st.button("Añadir 5", key=f"add5_{fila['Código']}_{tipo}", use_container_width=True):
+                    agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
+                    st.rerun()
+
+            st.caption(f"En carrito: {qty_actual} {tipo}")
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 if "carrito" not in st.session_state:
