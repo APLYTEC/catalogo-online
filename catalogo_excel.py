@@ -621,7 +621,6 @@ def volver_a_subfamilias():
 
 
 def render_menu_superior():
-    total = total_items_carrito()
     st.markdown(
         """
         <style>
@@ -664,25 +663,24 @@ def render_menu_superior():
         }
         .hero-info-box {
             max-width: 760px;
-            margin: 1.4rem auto 0 auto;
-            background: rgba(255,255,255,.72);
-            border:1px solid #dfeedd;
-            border-radius:20px;
-            padding:1rem 1.1rem;
-            text-align:left;
+            margin: 1.3rem auto 0 auto;
+            background: rgba(255,255,255,.88);
+            border: 1px solid #dfeedd;
+            border-radius: 20px;
+            padding: 1rem 1.1rem;
+            text-align: left;
+            box-shadow: 0 8px 18px rgba(0,0,0,.04);
         }
-        .hero-info-title {
-            margin:0 0 .55rem 0;
-            font-size:1rem;
-            font-weight:700;
-            color:#355e2b;
+        .hero-info-box ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
         }
-        .hero-info-list {
-            margin:0;
-            padding-left:1.2rem;
+        .hero-info-box li {
             color:#355e2b;
-            line-height:1.7;
             font-weight:600;
+            padding: .28rem 0;
+            line-height:1.35;
         }
         .contact-card {
             background: linear-gradient(135deg, #f8fbf8 0%, #eef7eb 100%);
@@ -700,26 +698,23 @@ def render_menu_superior():
         }
         .cta-band p, .cta-band h3 {color:white; margin:0;}
         .topbar-btn button {height: 48px; font-weight: 700;}
+        @media (max-width: 900px) {
+            .hero-info-box {padding: .95rem 1rem;}
+        }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    b1, b2, b3, b4 = st.columns([1.1, 1.1, 1.1, 1.2])
-    with b1:
-        if st.button("🏠 Inicio", use_container_width=True, key="top_inicio"):
+    c1, c2, c3 = st.columns([1.1, 3.8, 1.1])
+    with c1:
+        if st.button("🏠 Ir a inicio", use_container_width=True, key="top_inicio"):
             ir_a_inicio()
             st.rerun()
-    with b2:
-        if st.button("📦 Ver productos", use_container_width=True, key="top_productos"):
-            ir_a_catalogo()
-            st.rerun()
-    with b3:
-        if st.button(f"🛒 Mi carrito ({total})", use_container_width=True, key="top_carrito"):
-            ir_a_carrito()
-            st.rerun()
-    with b4:
-        st.link_button("💬 WhatsApp", WHATSAPP_LINK, use_container_width=True)
+    with c2:
+        st.markdown("", unsafe_allow_html=True)
+    with c3:
+        st.markdown("", unsafe_allow_html=True)
 
     st.markdown("<div style='margin-top:0.3rem'></div>", unsafe_allow_html=True)
 
@@ -735,11 +730,10 @@ def render_inicio():
             <h1 class='hero-title'>Haz tu pedido online</h1>
             <p class='hero-subtitle'>Accede al catálogo de Aplytec de forma rápida y sencilla. Encuentra lo que necesitas, añádelo al carrito y envía tu pedido desde el móvil en pocos pasos.</p>
             <div class='hero-info-box'>
-                <div class='hero-info-title'>Ventajas del catálogo</div>
-                <ul class='hero-info-list'>
-                    <li>Productos organizados por familias</li>
-                    <li>Compra rápida y clara</li>
-                    <li>Preparación del pedido en pocos pasos</li>
+                <ul>
+                    <li>📦 Productos organizados por familias</li>
+                    <li>🛒 Compra rápida y clara</li>
+                    <li>💬 Atención directa por WhatsApp</li>
                 </ul>
             </div>
         </div>
@@ -748,7 +742,7 @@ def render_inicio():
     )
 
     st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
-    render_aply(APLY_SALUDA, "Hola, soy Aply. Entra al catálogo y prepara tu pedido en pocos pasos.", altura=280)
+    render_aply(APLY_SALUDA, 'Hola, soy Aply. Entra en el catálogo pulsando el botón "Ver productos" y prepara tu pedido en pocos pasos.', altura=280)
 
     st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
@@ -766,19 +760,7 @@ def render_inicio():
             st.rerun()
 
     st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
-    cta1, cta2 = st.columns([1.8, 1.2])
-    with cta1:
-        st.markdown(
-            """
-            <div class='cta-band'>
-                <h3>Escanea, entra y pide</h3>
-                <p style='margin-top:.35rem;'>Ideal para panfletos y clientes: acceso directo al catálogo, navegación fácil y contacto inmediato.</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with cta2:
-        st.link_button("💬 Pedir por WhatsApp", WHATSAPP_LINK, use_container_width=True)
+    st.link_button("💬 Pedir por WhatsApp", WHATSAPP_LINK, use_container_width=True)
 
     st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
     w1, w2 = st.columns([2, 1])
@@ -797,7 +779,6 @@ def render_inicio():
         if st.button("📦 Entrar al catálogo", use_container_width=True, key="inicio_catalogo_extra"):
             ir_a_catalogo()
             st.rerun()
-
 
 
 def render_contacto():
