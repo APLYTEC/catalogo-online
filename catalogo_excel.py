@@ -57,6 +57,7 @@ UTILES_SUBFAMILIAS_ORDENADAS = [
     ("Pulverizadores, dosificación y señalización", "sub_utiles_pulverizadores_dosificacion_senalizacion.png"),
     ("Guantes y protección", "sub_utiles_guantes_proteccion.png"),
     ("Otros útiles y accesorios", "sub_utiles_otros_utiles_accesorios.png"),
+]
 
 OTROS_SUBFAMILIAS_ORDENADAS = [
     ("Otros", None),
@@ -64,7 +65,6 @@ OTROS_SUBFAMILIAS_ORDENADAS = [
 
 SERVICIOS_SUBFAMILIAS_ORDENADAS = [
     ("Otros", None),
-]
 ]
 
 FAMILIAS_ORDENADAS = [
