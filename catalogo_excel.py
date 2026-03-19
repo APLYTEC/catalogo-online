@@ -82,6 +82,13 @@ EQUIPAMIENTO_SUBFAMILIAS_ORDENADAS = [
     ("Otros equipamientos", "sub_equipamiento_otros_equipamientos.png"),
 ]
 
+MAQUINAS_SUBFAMILIAS_ORDENADAS = [
+    ("Máquinas de limpieza de suelos", "sub_maquinas_limpieza_suelos.png"),
+    ("Lavado industrial, cocina y lavandería", "sub_maquinas_lavado_industrial_cocina_lavanderia.png"),
+    ("Dosificación, dilución y laboratorio", "sub_maquinas_dosificacion_dilucion_laboratorio.png"),
+    ("Repuestos, accesorios y SAT", "sub_maquinas_repuestos_accesorios_sat.png"),
+]
+
 FAMILIAS_ORDENADAS = [
     ("Químicos", 1, "🧪"),
     ("Celulosas", 2, "🧻"),
@@ -259,6 +266,17 @@ def obtener_ruta_imagen_subfamilia_equipamiento(subfamilia):
         "Accesorios de baño y sala": ["sub_equipamiento_accesorios_bano_sala"],
         "Carros, soportes y mobiliario auxiliar": ["sub_equipamiento_carros_soportes_mobiliario_auxiliar"],
         "Otros equipamientos": ["sub_equipamiento_otros_equipamientos"],
+    }
+    bases = mapa.get(str(subfamilia).strip())
+    return buscar_imagen_por_bases(bases) if bases else None
+
+
+def obtener_ruta_imagen_subfamilia_maquinas(subfamilia):
+    mapa = {
+        "Máquinas de limpieza de suelos": ["sub_maquinas_limpieza_suelos"],
+        "Lavado industrial, cocina y lavandería": ["sub_maquinas_lavado_industrial_cocina_lavanderia"],
+        "Dosificación, dilución y laboratorio": ["sub_maquinas_dosificacion_dilucion_laboratorio"],
+        "Repuestos, accesorios y SAT": ["sub_maquinas_repuestos_accesorios_sat"],
     }
     bases = mapa.get(str(subfamilia).strip())
     return buscar_imagen_por_bases(bases) if bases else None
@@ -998,6 +1016,19 @@ def render_rejilla_subfamilias_equipamiento():
     render_rejilla_component(items)
 
 
+def render_rejilla_subfamilias_maquinas():
+    items = []
+    for subfamilia, _archivo in MAQUINAS_SUBFAMILIAS_ORDENADAS:
+        img = obtener_ruta_imagen_subfamilia_maquinas(subfamilia)
+        items.append({
+            "href": qp_url(pantalla="catalogo", familia="Máquinas", subfamilia=subfamilia),
+            "alt": subfamilia,
+            "img": imagen_data_uri(img) if img and img.exists() else None,
+            "fallback": subfamilia,
+        })
+    render_rejilla_component(items)
+
+
 def construir_mapa_cantidades_carrito():
     cantidades = {}
     for item in st.session_state.carrito:
@@ -1167,6 +1198,10 @@ def render_catalogo(df):
             if familia_actual == "Equipamiento":
                 st.markdown("### Selecciona una subfamilia")
                 render_rejilla_subfamilias_equipamiento()
+                return
+            if familia_actual == "Máquinas":
+                st.markdown("### Selecciona una subfamilia")
+                render_rejilla_subfamilias_maquinas()
                 return
             subfamilias = (
                 df[df["Familia"] == familia_actual]["Subfamilia"]
