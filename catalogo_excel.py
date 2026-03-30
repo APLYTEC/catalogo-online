@@ -112,12 +112,16 @@ FAMILIAS = {nombre: {"id": fam_id, "icono": icono} for nombre, fam_id, icono in 
 FORMATOS = ["unidades", "cajas", "paquetes"]
 
 
-class PedidoPDF(FPDF):
+class DocumentoPDF(FPDF):
+    def __init__(self, titulo_documento="Pedido"):
+        super().__init__()
+        self.titulo_documento = titulo_documento
+
     def header(self):
         if Path("images.png").exists():
             self.image("images.png", 10, 8, 33)
         self.set_font("Arial", "B", 15)
-        self.cell(0, 10, "APLYTEC - Resumen de Pedido", ln=True, align="C")
+        self.cell(0, 10, f"APLYTEC - {self.titulo_documento}", ln=True, align="C")
         self.ln(10)
 
     def footer(self):
@@ -126,24 +130,60 @@ class PedidoPDF(FPDF):
         self.cell(0, 10, "Pagina " + str(self.page_no()), 0, 0, "C")
 
 
-def generar_pdf(nombre, resumen, total, comentarios, output_path):
-    pdf = PedidoPDF()
+def _asegurar_espacio_pdf(pdf, alto_necesario=25):
+    if pdf.get_y() + alto_necesario > 270:
+        pdf.add_page()
+
+
+def generar_pdf(nombre, resumen, total, comentarios, output_path, tipo_documento="pedido", incluir_imagenes=False, carrito=None, telefono=""):
+    titulo = "Presupuesto" if str(tipo_documento).lower() == "presupuesto" else "Pedido"
+    pdf = DocumentoPDF(titulo)
+    pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
     pdf.set_font("Arial", "", 12)
     pdf.cell(0, 10, f"Cliente: {nombre}", ln=True)
-    pdf.ln(5)
-    pdf.multi_cell(0, 10, resumen)
-    pdf.ln(5)
+    if telefono:
+        pdf.cell(0, 10, f"Telefono: {telefono}", ln=True)
+    pdf.ln(3)
+
+    if incluir_imagenes and carrito:
+        for item in carrito:
+            _asegurar_espacio_pdf(pdf, 34)
+            ruta_img = obtener_ruta_imagen_producto(item.get("Código", ""))
+            y_inicio = pdf.get_y()
+            if ruta_img and Path(ruta_img).exists():
+                try:
+                    pdf.image(str(ruta_img), x=10, y=y_inicio, w=24, h=24)
+                except Exception:
+                    pass
+            pdf.set_xy(38, y_inicio)
+            pdf.set_font("Arial", "B", 11)
+            pdf.multi_cell(0, 6, str(item.get("Nombre", "")))
+            pdf.set_x(38)
+            pdf.set_font("Arial", "", 10)
+            subtotal = float(item.get("Cantidad", 0)) * float(item.get("PrecioUnitario", 0.0))
+            pdf.multi_cell(0, 5, f"Codigo: {item.get('Código', '')}\nCantidad: {item.get('Cantidad', 0)} {item.get('Tipo', '')}\nSubtotal: {subtotal:.2f} euros")
+            pdf.ln(2)
+    else:
+        pdf.multi_cell(0, 8, resumen)
+
+    pdf.ln(4)
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, f"Total del pedido: {total:.2f} euros (IVA incluido)", ln=True)
+    etiqueta_total = "Total del presupuesto" if titulo == "Presupuesto" else "Total del pedido"
+    pdf.cell(0, 10, f"{etiqueta_total}: {total:.2f} euros (IVA incluido)", ln=True)
+
+    if titulo == "Presupuesto":
+        pdf.set_font("Arial", "I", 10)
+        pdf.multi_cell(0, 8, "Presupuesto sujeto a disponibilidad y revision de precios.")
+
     if comentarios:
-        pdf.ln(10)
+        pdf.ln(6)
         pdf.set_font("Arial", "I", 11)
-        pdf.multi_cell(0, 10, f"Comentarios: {comentarios}")
+        pdf.multi_cell(0, 8, f"Comentarios: {comentarios}")
     pdf.output(output_path)
 
 
-def enviar_pedido_por_email(asunto, cuerpo, adjunto_path):
+def enviar_documento_por_email(asunto, cuerpo, adjunto_path, nombre_adjunto="documento.pdf"):
     msg = EmailMessage()
     msg["From"] = EMAIL_REMITENTE
     msg["To"] = EMAIL_DESTINO
@@ -156,13 +196,49 @@ def enviar_pedido_por_email(asunto, cuerpo, adjunto_path):
                 f.read(),
                 maintype="application",
                 subtype="pdf",
-                filename="resumen_pedido.pdf",
+                filename=nombre_adjunto,
             )
 
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
         server.login(EMAIL_REMITENTE, CONTRASENA_APP)
         server.send_message(msg)
+
+
+def obtener_configuracion_documento(opcion):
+    opcion = str(opcion).strip()
+    if opcion == "Presupuesto con imágenes":
+        return {
+            "tipo_documento": "presupuesto",
+            "incluir_imagenes": True,
+            "titulo": "Presupuesto",
+            "archivo": "presupuesto_con_imagenes.pdf",
+            "asunto": "Nuevo presupuesto de catálogo",
+            "boton": "📨 Enviar presupuesto con imágenes",
+            "success": "✅ Presupuesto con imágenes enviado correctamente",
+            "download": "📄 Descargar presupuesto con imágenes",
+        }
+    if opcion == "Presupuesto sin imágenes":
+        return {
+            "tipo_documento": "presupuesto",
+            "incluir_imagenes": False,
+            "titulo": "Presupuesto",
+            "archivo": "presupuesto_sin_imagenes.pdf",
+            "asunto": "Nuevo presupuesto de catálogo",
+            "boton": "📨 Enviar presupuesto",
+            "success": "✅ Presupuesto enviado correctamente",
+            "download": "📄 Descargar presupuesto",
+        }
+    return {
+        "tipo_documento": "pedido",
+        "incluir_imagenes": False,
+        "titulo": "Pedido",
+        "archivo": "resumen_pedido.pdf",
+        "asunto": "Nuevo pedido de catálogo",
+        "boton": "📨 Enviar pedido",
+        "success": "✅ Pedido enviado correctamente",
+        "download": "📄 Descargar resumen en PDF",
+    }
 
 
 @st.cache_data
@@ -805,10 +881,9 @@ def render_carrito():
     st.markdown("## 🛒 Mi carrito")
     c1, c2 = st.columns([1.8, 1])
     with c1:
-        st.markdown("Completa tu pedido y envíalo cuando esté todo correcto.")
+        st.markdown("Completa tu pedido o genera un presupuesto y envíalo cuando esté todo correcto.")
     with c2:
         render_aply(APLY_CARRITO, "Revisa tu pedido y no olvides indicar tu nombre y tu teléfono.", altura=230)
-    ruta_pdf = "resumen_pedido.pdf"
 
     if st.session_state.carrito:
         total = 0.0
@@ -864,12 +939,19 @@ def render_carrito():
         with st.form("form_pedido"):
             nombre = st.text_input("Tu nombre", key="pedido_nombre")
             telefono = st.text_input("Teléfono", key="pedido_telefono")
+            tipo_salida = st.radio(
+                "Tipo de documento",
+                ["Pedido", "Presupuesto sin imágenes", "Presupuesto con imágenes"],
+                index=0,
+                key="tipo_documento_salida",
+            )
             comentarios = st.text_area(
                 "Observaciones",
                 key="pedido_observaciones",
                 placeholder="Si es tu primera compra añade tus datos para facturar (CIF/NIF, Nombre, Dirección)"
             )
-            enviar = st.form_submit_button("📨 Enviar pedido")
+            config_doc = obtener_configuracion_documento(tipo_salida)
+            enviar = st.form_submit_button(config_doc["boton"])
 
             if enviar:
                 nombre_limpio = nombre.strip()
@@ -877,11 +959,11 @@ def render_carrito():
 
                 if not nombre_limpio or not telefono_limpio:
                     if not nombre_limpio and not telefono_limpio:
-                        aviso = "Faltan nombre y teléfono para poder enviar el pedido."
+                        aviso = f"Faltan nombre y teléfono para poder enviar el {config_doc['titulo'].lower()}."
                     elif not nombre_limpio:
-                        aviso = "Falta el nombre para poder enviar el pedido."
+                        aviso = f"Falta el nombre para poder enviar el {config_doc['titulo'].lower()}."
                     else:
-                        aviso = "Falta el teléfono para poder enviar el pedido."
+                        aviso = f"Falta el teléfono para poder enviar el {config_doc['titulo'].lower()}."
 
                     st.warning(aviso)
                     components.html(
@@ -902,25 +984,45 @@ def render_carrito():
                         height=0,
                     )
                 else:
+                    ruta_pdf = config_doc["archivo"]
                     resumen_txt = (
-                        f"Pedido enviado por: {nombre_limpio}\n"
-                        f"Telefono: {telefono_limpio}\n\n{resumen}\n"
+                        f"{config_doc['titulo']} enviado por: {nombre_limpio}\n"
+                        f"Telefono: {telefono_limpio}\n"
+                        f"Modalidad: {tipo_salida}\n\n{resumen}\n"
                         f"Total: {total:.2f} euros (IVA incluido)\n\nComentarios: {comentarios}"
                     )
-                    generar_pdf(nombre_limpio, resumen, total, comentarios, ruta_pdf)
-                    enviar_pedido_por_email("Nuevo pedido de catálogo", resumen_txt, ruta_pdf)
-                    st.success("✅ Pedido enviado correctamente")
+                    generar_pdf(
+                        nombre_limpio,
+                        resumen,
+                        total,
+                        comentarios,
+                        ruta_pdf,
+                        tipo_documento=config_doc["tipo_documento"],
+                        incluir_imagenes=config_doc["incluir_imagenes"],
+                        carrito=st.session_state.carrito,
+                        telefono=telefono_limpio,
+                    )
+                    enviar_documento_por_email(
+                        config_doc["asunto"],
+                        resumen_txt,
+                        ruta_pdf,
+                        nombre_adjunto=config_doc["archivo"],
+                    )
+                    st.success(config_doc["success"])
                     st.session_state.pdf_generado = True
+                    st.session_state.ultimo_pdf_path = ruta_pdf
+                    st.session_state.ultimo_pdf_nombre = config_doc["archivo"]
+                    st.session_state.ultimo_pdf_boton = config_doc["download"]
                     st.session_state.carrito = []
 
         b1, b2, b3 = st.columns(3)
         with b1:
-            if st.session_state.pdf_generado and Path(ruta_pdf).exists():
-                with open(ruta_pdf, "rb") as f:
+            if st.session_state.pdf_generado and st.session_state.get("ultimo_pdf_path") and Path(st.session_state["ultimo_pdf_path"]).exists():
+                with open(st.session_state["ultimo_pdf_path"], "rb") as f:
                     st.download_button(
-                        "📄 Descargar resumen en PDF",
+                        st.session_state.get("ultimo_pdf_boton", "📄 Descargar PDF"),
                         f,
-                        file_name="resumen_pedido.pdf",
+                        file_name=st.session_state.get("ultimo_pdf_nombre", "documento.pdf"),
                         use_container_width=True,
                     )
         with b2:
@@ -1440,6 +1542,12 @@ if "pdf_generado" not in st.session_state:
     st.session_state.pdf_generado = False
 if "pantalla_actual" not in st.session_state:
     st.session_state.pantalla_actual = "inicio"
+if "ultimo_pdf_path" not in st.session_state:
+    st.session_state.ultimo_pdf_path = ""
+if "ultimo_pdf_nombre" not in st.session_state:
+    st.session_state.ultimo_pdf_nombre = ""
+if "ultimo_pdf_boton" not in st.session_state:
+    st.session_state.ultimo_pdf_boton = "📄 Descargar PDF"
 
 qp = st.query_params
 cart_qp = qp.get("cart")
