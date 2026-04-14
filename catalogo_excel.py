@@ -932,6 +932,8 @@ def render_carrito():
 
         if nuevo_carrito != st.session_state.carrito or borrado:
             st.session_state.carrito = nuevo_carrito
+            st.session_state.next_cart_id = max([int(x.get("id", 0)) for x in st.session_state.carrito] + [0]) + 1
+            sync_query_params()
 
         st.markdown(f"### Total: {total:.2f} euros (IVA incluido)")
 
@@ -1014,6 +1016,8 @@ def render_carrito():
                     st.session_state.ultimo_pdf_nombre = config_doc["archivo"]
                     st.session_state.ultimo_pdf_boton = config_doc["download"]
                     st.session_state.carrito = []
+                    st.session_state.next_cart_id = 1
+                    sync_query_params()
 
         b1, b2, b3 = st.columns(3)
         with b1:
@@ -1028,7 +1032,9 @@ def render_carrito():
         with b2:
             if st.button("🗑️ Vaciar carrito", use_container_width=True):
                 st.session_state.carrito = []
+                st.session_state.next_cart_id = 1
                 st.session_state.pdf_generado = False
+                sync_query_params()
                 st.warning("Carrito vaciado")
                 st.rerun()
         with b3:
