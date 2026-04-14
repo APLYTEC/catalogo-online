@@ -28,6 +28,58 @@ APLY_SENALA = CARPETA_IMAGENES / "aply_senalando.png"
 APLY_CARRITO = CARPETA_IMAGENES / "aply_carrito.png"
 APLY_MOVIL = CARPETA_IMAGENES / "aply_movil.png"
 
+
+CARRITOS_TEMP_DIR = Path("carritos_temporales")
+
+def generar_sid_carrito():
+    return uuid.uuid4().hex
+
+def _ruta_carrito_servidor(sid):
+    sid = str(sid or '').strip()
+    if not sid:
+        return None
+    CARRITOS_TEMP_DIR.mkdir(parents=True, exist_ok=True)
+    return CARRITOS_TEMP_DIR / f"{sid}.json"
+
+def guardar_carrito_servidor(sid, carrito):
+    ruta = _ruta_carrito_servidor(sid)
+    if ruta is None:
+        return
+    try:
+        data = []
+        for item in (carrito or []):
+            data.append({
+                "id": int(item.get("id", 0)),
+                "Código": str(item.get("Código", "")),
+                "Nombre": str(item.get("Nombre", "")),
+                "Cantidad": int(item.get("Cantidad", 0)),
+                "Tipo": str(item.get("Tipo", "")),
+                "PrecioUnitario": float(item.get("PrecioUnitario", 0.0)),
+            })
+        ruta.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
+    except Exception:
+        pass
+
+def cargar_carrito_servidor(sid):
+    ruta = _ruta_carrito_servidor(sid)
+    if ruta is None or not ruta.exists():
+        return []
+    try:
+        data = json.loads(ruta.read_text(encoding='utf-8'))
+        carrito = []
+        for item in data:
+            carrito.append({
+                "id": int(item.get("id", 0)),
+                "Código": str(item.get("Código", "")),
+                "Nombre": str(item.get("Nombre", "")),
+                "Cantidad": int(item.get("Cantidad", 0)),
+                "Tipo": str(item.get("Tipo", "")),
+                "PrecioUnitario": float(item.get("PrecioUnitario", 0.0)),
+            })
+        return carrito
+    except Exception:
+        return []
+
 QUIMICOS_SUBFAMILIAS_ORDENADAS = [
     ("Lavavajillas", "sub_quimicos_lavavajillas.png"),
     ("Desengrasantes", "sub_quimicos_desengrasantes.png"),
