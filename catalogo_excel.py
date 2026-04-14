@@ -5,6 +5,7 @@ import smtplib
 import ssl
 import base64
 import json
+import uuid
 from urllib.parse import quote
 from email.message import EmailMessage
 from fpdf import FPDF
@@ -514,46 +515,9 @@ def restaurar_carrito_desde_qp(valor):
         return []
 
 
-def render_persistencia_carrito_local():
-    components.html(
-        """
-        <script>
-        (function() {
-            const STORAGE_KEY = "aplytec_cart_qp";
-            const url = new URL(window.parent.location.href);
-            const cartParam = url.searchParams.get("cart");
-            const storageChecked = url.searchParams.get("storage_checked");
-
-            if (cartParam !== null) {
-                window.parent.localStorage.setItem(STORAGE_KEY, cartParam);
-                if (storageChecked !== null) {
-                    url.searchParams.delete("storage_checked");
-                    window.parent.location.replace(url.toString());
-                }
-                return;
-            }
-
-            const savedCart = window.parent.localStorage.getItem(STORAGE_KEY);
-            if (savedCart !== null) {
-                url.searchParams.set("cart", savedCart);
-                url.searchParams.set("storage_checked", "1");
-                window.parent.location.replace(url.toString());
-                return;
-            }
-
-            if (storageChecked === null) {
-                url.searchParams.set("storage_checked", "1");
-                window.parent.location.replace(url.toString());
-            }
-        })();
-        </script>
-        """,
-        height=0,
-    )
-
-
 def sync_query_params():
-    params = {"pantalla": st.session_state.pantalla_actual}
+    guardar_carrito_servidor(st.session_state.get("carrito_sid"), st.session_state.carrito)
+    params = {"pantalla": st.session_state.pantalla_actual, "sid": st.session_state.get("carrito_sid", "")}
     if st.session_state.familia_actual:
         params["familia"] = st.session_state.familia_actual
     if st.session_state.subfamilia_actual:
@@ -566,6 +530,9 @@ def sync_query_params():
 def qp_url(pantalla=None, familia=None, subfamilia=None):
     pantalla = pantalla or st.session_state.pantalla_actual or "catalogo"
     parts = [f"pantalla={quote(str(pantalla), safe='')}"]
+    sid = st.session_state.get("carrito_sid", "")
+    if sid:
+        parts.append(f"sid={quote(str(sid), safe='')}")
     if familia:
         parts.append(f"familia={quote(str(familia), safe='')}")
     if subfamilia:
@@ -1576,6 +1543,8 @@ if "pdf_generado" not in st.session_state:
     st.session_state.pdf_generado = False
 if "pantalla_actual" not in st.session_state:
     st.session_state.pantalla_actual = "inicio"
+if "carrito_sid" not in st.session_state:
+    st.session_state.carrito_sid = ""
 if "ultimo_pdf_path" not in st.session_state:
     st.session_state.ultimo_pdf_path = ""
 if "ultimo_pdf_nombre" not in st.session_state:
@@ -1585,12 +1554,24 @@ if "ultimo_pdf_boton" not in st.session_state:
 
 qp = st.query_params
 cart_qp = qp.get("cart")
-storage_checked = qp.get("storage_checked")
+sid_qp = qp.get("sid")
+
+if sid_qp:
+    st.session_state.carrito_sid = sid_qp
+elif not st.session_state.carrito_sid:
+    st.session_state.carrito_sid = generar_sid_carrito()
+
 if cart_qp:
     carrito_qp = restaurar_carrito_desde_qp(cart_qp)
     if carrito_qp:
         st.session_state.carrito = carrito_qp
         st.session_state.next_cart_id = max([int(x.get("id", 0)) for x in carrito_qp] + [0]) + 1
+        guardar_carrito_servidor(st.session_state.carrito_sid, st.session_state.carrito)
+else:
+    carrito_srv = cargar_carrito_servidor(st.session_state.carrito_sid)
+    if carrito_srv:
+        st.session_state.carrito = carrito_srv
+        st.session_state.next_cart_id = max([int(x.get("id", 0)) for x in carrito_srv] + [0]) + 1
 if qp.get("familia"):
     st.session_state.familia_actual = qp.get("familia")
     st.session_state.pantalla_actual = "catalogo"
@@ -1602,11 +1583,6 @@ if qp.get("pantalla") in {"inicio", "catalogo", "carrito", "contacto"}:
 
 st.set_page_config(page_title="Catálogo APLYTEC", layout="wide")
 
-if cart_qp is None and storage_checked is None:
-    render_persistencia_carrito_local()
-    st.stop()
-
-render_persistencia_carrito_local()
 sync_query_params()
 df = cargar_datos()
 render_menu_superior()
