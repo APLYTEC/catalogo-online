@@ -514,15 +514,39 @@ def restaurar_carrito_desde_qp(valor):
         return []
 
 
+def render_persistencia_carrito_local():
+    components.html(
+        """
+        <script>
+        (function() {
+            const STORAGE_KEY = "aplytec_cart_qp";
+            const url = new URL(window.parent.location.href);
+            const cartParam = url.searchParams.get("cart");
+
+            if (cartParam !== null) {
+                window.parent.localStorage.setItem(STORAGE_KEY, cartParam);
+                return;
+            }
+
+            const savedCart = window.parent.localStorage.getItem(STORAGE_KEY);
+            if (savedCart !== null) {
+                url.searchParams.set("cart", savedCart);
+                window.parent.location.replace(url.toString());
+            }
+        })();
+        </script>
+        """,
+        height=0,
+    )
+
+
 def sync_query_params():
     params = {"pantalla": st.session_state.pantalla_actual}
     if st.session_state.familia_actual:
         params["familia"] = st.session_state.familia_actual
     if st.session_state.subfamilia_actual:
         params["subfamilia"] = st.session_state.subfamilia_actual
-    cart = serializar_carrito_para_qp()
-    if cart:
-        params["cart"] = cart
+    params["cart"] = serializar_carrito_para_qp()
     st.query_params.clear()
     st.query_params.update(params)
 
@@ -534,9 +558,7 @@ def qp_url(pantalla=None, familia=None, subfamilia=None):
         parts.append(f"familia={quote(str(familia), safe='')}")
     if subfamilia:
         parts.append(f"subfamilia={quote(str(subfamilia), safe='')}")
-    cart = serializar_carrito_para_qp()
-    if cart:
-        parts.append(f"cart={cart}")
+    parts.append(f"cart={serializar_carrito_para_qp()}")
     return "?" + "&".join(parts)
 
 
@@ -932,8 +954,6 @@ def render_carrito():
 
         if nuevo_carrito != st.session_state.carrito or borrado:
             st.session_state.carrito = nuevo_carrito
-            st.session_state.next_cart_id = max([int(x.get("id", 0)) for x in st.session_state.carrito] + [0]) + 1
-            sync_query_params()
 
         st.markdown(f"### Total: {total:.2f} euros (IVA incluido)")
 
@@ -1016,8 +1036,6 @@ def render_carrito():
                     st.session_state.ultimo_pdf_nombre = config_doc["archivo"]
                     st.session_state.ultimo_pdf_boton = config_doc["download"]
                     st.session_state.carrito = []
-                    st.session_state.next_cart_id = 1
-                    sync_query_params()
 
         b1, b2, b3 = st.columns(3)
         with b1:
@@ -1032,9 +1050,7 @@ def render_carrito():
         with b2:
             if st.button("🗑️ Vaciar carrito", use_container_width=True):
                 st.session_state.carrito = []
-                st.session_state.next_cart_id = 1
                 st.session_state.pdf_generado = False
-                sync_query_params()
                 st.warning("Carrito vaciado")
                 st.rerun()
         with b3:
@@ -1573,6 +1589,7 @@ if qp.get("pantalla") in {"inicio", "catalogo", "carrito", "contacto"}:
 
 st.set_page_config(page_title="Catálogo APLYTEC", layout="wide")
 
+render_persistencia_carrito_local()
 sync_query_params()
 df = cargar_datos()
 render_menu_superior()
