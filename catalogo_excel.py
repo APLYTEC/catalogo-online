@@ -29,7 +29,7 @@ APLY_CARRITO = CARPETA_IMAGENES / "aply_carrito.png"
 APLY_MOVIL = CARPETA_IMAGENES / "aply_movil.png"
 
 
-CARRITOS_TEMP_DIR = Path("carritos_temporales")
+CARRITOS_TEMP_DIR = Path("/tmp/aplytec_carritos")
 
 def generar_sid_carrito():
     return uuid.uuid4().hex
@@ -569,12 +569,14 @@ def restaurar_carrito_desde_qp(valor):
 
 def sync_query_params():
     guardar_carrito_servidor(st.session_state.get("carrito_sid"), st.session_state.carrito)
-    params = {"pantalla": st.session_state.pantalla_actual, "sid": st.session_state.get("carrito_sid", "")}
+    params = {"pantalla": st.session_state.pantalla_actual}
+    sid = st.session_state.get("carrito_sid", "")
+    if sid:
+        params["sid"] = sid
     if st.session_state.familia_actual:
         params["familia"] = st.session_state.familia_actual
     if st.session_state.subfamilia_actual:
         params["subfamilia"] = st.session_state.subfamilia_actual
-    params["cart"] = serializar_carrito_para_qp()
     st.query_params.clear()
     st.query_params.update(params)
 
@@ -589,7 +591,6 @@ def qp_url(pantalla=None, familia=None, subfamilia=None):
         parts.append(f"familia={quote(str(familia), safe='')}")
     if subfamilia:
         parts.append(f"subfamilia={quote(str(subfamilia), safe='')}")
-    parts.append(f"cart={serializar_carrito_para_qp()}")
     return "?" + "&".join(parts)
 
 
@@ -1609,21 +1610,24 @@ cart_qp = qp.get("cart")
 sid_qp = qp.get("sid")
 
 if sid_qp:
-    st.session_state.carrito_sid = sid_qp
+    st.session_state.carrito_sid = str(sid_qp)
 elif not st.session_state.carrito_sid:
     st.session_state.carrito_sid = generar_sid_carrito()
 
-if cart_qp:
+carrito_cargado = False
+carrito_srv = cargar_carrito_servidor(st.session_state.carrito_sid)
+if carrito_srv:
+    st.session_state.carrito = carrito_srv
+    st.session_state.next_cart_id = max([int(x.get("id", 0)) for x in carrito_srv] + [0]) + 1
+    carrito_cargado = True
+
+# Compatibilidad con URLs antiguas que todavía lleven cart=...
+if (not carrito_cargado) and cart_qp:
     carrito_qp = restaurar_carrito_desde_qp(cart_qp)
     if carrito_qp:
         st.session_state.carrito = carrito_qp
         st.session_state.next_cart_id = max([int(x.get("id", 0)) for x in carrito_qp] + [0]) + 1
         guardar_carrito_servidor(st.session_state.carrito_sid, st.session_state.carrito)
-else:
-    carrito_srv = cargar_carrito_servidor(st.session_state.carrito_sid)
-    if carrito_srv:
-        st.session_state.carrito = carrito_srv
-        st.session_state.next_cart_id = max([int(x.get("id", 0)) for x in carrito_srv] + [0]) + 1
 if qp.get("familia"):
     st.session_state.familia_actual = qp.get("familia")
     st.session_state.pantalla_actual = "catalogo"
