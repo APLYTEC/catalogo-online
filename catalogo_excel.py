@@ -522,15 +522,27 @@ def render_persistencia_carrito_local():
             const STORAGE_KEY = "aplytec_cart_qp";
             const url = new URL(window.parent.location.href);
             const cartParam = url.searchParams.get("cart");
+            const storageChecked = url.searchParams.get("storage_checked");
 
             if (cartParam !== null) {
                 window.parent.localStorage.setItem(STORAGE_KEY, cartParam);
+                if (storageChecked !== null) {
+                    url.searchParams.delete("storage_checked");
+                    window.parent.location.replace(url.toString());
+                }
                 return;
             }
 
             const savedCart = window.parent.localStorage.getItem(STORAGE_KEY);
             if (savedCart !== null) {
                 url.searchParams.set("cart", savedCart);
+                url.searchParams.set("storage_checked", "1");
+                window.parent.location.replace(url.toString());
+                return;
+            }
+
+            if (storageChecked === null) {
+                url.searchParams.set("storage_checked", "1");
                 window.parent.location.replace(url.toString());
             }
         })();
@@ -1573,6 +1585,7 @@ if "ultimo_pdf_boton" not in st.session_state:
 
 qp = st.query_params
 cart_qp = qp.get("cart")
+storage_checked = qp.get("storage_checked")
 if cart_qp:
     carrito_qp = restaurar_carrito_desde_qp(cart_qp)
     if carrito_qp:
@@ -1588,6 +1601,10 @@ if qp.get("pantalla") in {"inicio", "catalogo", "carrito", "contacto"}:
     st.session_state.pantalla_actual = qp.get("pantalla")
 
 st.set_page_config(page_title="Catálogo APLYTEC", layout="wide")
+
+if cart_qp is None and storage_checked is None:
+    render_persistencia_carrito_local()
+    st.stop()
 
 render_persistencia_carrito_local()
 sync_query_params()
