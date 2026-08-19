@@ -5,7 +5,7 @@ import smtplib
 import ssl
 import base64
 import json
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 from email.message import EmailMessage
 from fpdf import FPDF
 from pathlib import Path
@@ -213,6 +213,12 @@ def imagen_data_uri(ruta):
 
 
 def serializar_carrito_para_qp():
+    """Devuelve JSON sin pre-codificar.
+
+    Streamlit ya codifica los valores al escribir st.query_params. Si se hace
+    quote() aquí también, el carrito queda doblemente codificado y no puede
+    restaurarse correctamente después de refrescar la página.
+    """
     try:
         data = [{
             "id": int(item.get("id", 0)),
@@ -222,7 +228,7 @@ def serializar_carrito_para_qp():
             "Tipo": str(item.get("Tipo", "")),
             "PrecioUnitario": float(item.get("PrecioUnitario", 0.0)),
         } for item in st.session_state.carrito]
-        return quote(json.dumps(data, ensure_ascii=False, separators=(",", ":")), safe="")
+        return json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     except Exception:
         return ""
 
@@ -231,7 +237,21 @@ def restaurar_carrito_desde_qp(valor):
     if not valor:
         return []
     try:
-        data = json.loads(valor)
+        # Compatibilidad con URLs generadas por versiones anteriores:
+        # intentamos JSON directo y, si hace falta, hasta dos decodificaciones.
+        candidatos = [str(valor)]
+        candidatos.append(unquote(candidatos[-1]))
+        candidatos.append(unquote(candidatos[-1]))
+        data = None
+        for candidato in candidatos:
+            try:
+                data = json.loads(candidato)
+                break
+            except Exception:
+                continue
+        if data is None:
+            return []
+
         carrito = []
         for item in data:
             carrito.append({
@@ -269,7 +289,7 @@ def qp_url(pantalla=None, familia=None, subfamilia=None):
         parts.append(f"subfamilia={quote(str(subfamilia), safe='')}")
     cart = serializar_carrito_para_qp()
     if cart:
-        parts.append(f"cart={cart}")
+        parts.append(f"cart={quote(cart, safe='')}")
     return "?" + "&".join(parts)
 
 
@@ -522,6 +542,11 @@ def render_inicio():
         """,
         unsafe_allow_html=True,
     )
+
+    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
+    if st.button("📦 Entrar al catálogo", key="btn_inicio_catalogo", type="primary", use_container_width=True):
+        ir_a_catalogo()
+        st.rerun()
 
     st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
     st.markdown(
