@@ -1,19 +1,11 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
-
-try:
-    from streamlit_local_storage import LocalStorage
-    LOCAL_STORAGE_DISPONIBLE = True
-except Exception:
-    LocalStorage = None
-    LOCAL_STORAGE_DISPONIBLE = False
 import smtplib
 import ssl
 import base64
 import json
-import time
-import zlib
+import hashlib
 import re
 import unicodedata
 from urllib.parse import quote, unquote
@@ -61,8 +53,6 @@ FAMILIAS_ORDENADAS = [
 
 FAMILIAS = {nombre: {"id": fam_id, "icono": icono} for nombre, fam_id, icono in FAMILIAS_ORDENADAS}
 FORMATOS = ["unidades", "cajas", "paquetes"]
-ULTIMO_PEDIDO_STORAGE_KEY = "aplytec_ultimo_pedido"
-
 
 
 class PedidoPDF(FPDF):
@@ -367,7 +357,8 @@ def qp_url(pantalla=None, familia=None, subfamilia=None):
 
 
 def agregar_o_sumar_al_carrito(codigo, nombre, tipo, precio_con_iva, cantidad=1):
-    st.session_state["pedido_enviado_confirmacion"] = False
+    # Si comienza un pedido nuevo, dejamos atrás la confirmación del anterior.
+    st.session_state.pedido_enviado_ok = False
     existente = None
     for item in st.session_state.carrito:
         if item["Código"] == codigo and item["Tipo"] == tipo:
@@ -594,200 +585,7 @@ def render_menu_superior():
     )
 
 
-
-def _extraer_valor_local_storage(valor):
-    """Normaliza los distintos formatos que puede devolver el componente."""
-    if valor is None:
-        return None
-    if isinstance(valor, dict):
-        if ULTIMO_PEDIDO_STORAGE_KEY in valor:
-            return valor.get(ULTIMO_PEDIDO_STORAGE_KEY)
-        if "value" in valor:
-            return valor.get("value")
-    return valor
-
-
-def _parsear_ultimo_pedido(valor):
-    valor = _extraer_valor_local_storage(valor)
-    if not valor:
-        return None
-    if isinstance(valor, dict):
-        data = valor
-    else:
-        try:
-            data = json.loads(str(valor))
-        except Exception:
-            return None
-    if not isinstance(data, dict) or not isinstance(data.get("items"), list):
-        return None
-    return data
-
-
-def _codificar_pedido_cookie(payload):
-    try:
-        bruto = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-        comprimido = zlib.compress(bruto, 9)
-        return base64.urlsafe_b64encode(comprimido).decode("ascii").rstrip("=")
-    except Exception:
-        return ""
-
-
-def _decodificar_pedido_cookie(valor):
-    if not valor:
-        return None
-    try:
-        txt = str(valor)
-        txt += "=" * (-len(txt) % 4)
-        bruto = zlib.decompress(base64.urlsafe_b64decode(txt.encode("ascii"))).decode("utf-8")
-        return _parsear_ultimo_pedido(bruto)
-    except Exception:
-        return None
-
-
-def leer_ultimo_pedido_navegador():
-    # 1) Copia de la sesión actual.
-    memoria = st.session_state.get("aplytec_ultimo_pedido_memoria")
-    if memoria:
-        return memoria
-
-    # 2) Cookie persistente. st.context.cookies se obtiene al iniciar la sesión
-    # y por tanto sobrevive a cerrar el navegador y volver a abrir la app.
-    try:
-        cookie_valor = st.context.cookies.get(ULTIMO_PEDIDO_STORAGE_KEY)
-        pedido = _decodificar_pedido_cookie(cookie_valor)
-        if pedido:
-            return pedido
-    except Exception:
-        pass
-
-    # 3) Compatibilidad con las versiones anteriores basadas en LocalStorage.
-    if LOCAL_STORAGE_DISPONIBLE:
-        try:
-            valor_estado = st.session_state.get("aplytec_get_ultimo_pedido")
-            pedido_estado = _parsear_ultimo_pedido(valor_estado)
-            if pedido_estado:
-                return pedido_estado
-            local_s = LocalStorage()
-            valor = local_s.getItem(
-                ULTIMO_PEDIDO_STORAGE_KEY,
-                key="aplytec_get_ultimo_pedido",
-            )
-            pedido = _parsear_ultimo_pedido(valor)
-            if pedido:
-                return pedido
-        except Exception:
-            pass
-    return None
-
-
-def guardar_ultimo_pedido_navegador(nombre, telefono, carrito):
-    payload = {
-        "nombre": str(nombre).strip(),
-        "telefono": str(telefono).strip(),
-        "items": [
-            {
-                "Código": str(item.get("Código", "")),
-                "Nombre": str(item.get("Nombre", "")),
-                "Cantidad": int(item.get("Cantidad", 0)),
-                "Tipo": str(item.get("Tipo", "unidades")),
-            }
-            for item in carrito
-            if int(item.get("Cantidad", 0)) > 0
-        ],
-    }
-
-    st.session_state["aplytec_ultimo_pedido_memoria"] = payload
-    cookie_valor = _codificar_pedido_cookie(payload)
-    if not cookie_valor:
-        return False
-
-    # La cookie se escribe en el documento principal del navegador. En el mismo
-    # script eliminamos el carrito antiguo de la URL para que un rerun posterior
-    # no pueda reconstruir un pedido ya enviado.
-    js_cookie = json.dumps(cookie_valor)
-    js_nombre = json.dumps(ULTIMO_PEDIDO_STORAGE_KEY)
-    components.html(
-        f"""
-        <script>
-        try {{
-            const doc = window.parent.document;
-            const cookieName = {js_nombre};
-            const cookieValue = {js_cookie};
-            doc.cookie = cookieName + '=' + cookieValue + '; Max-Age=31536000; Path=/; SameSite=Lax';
-
-            const url = new URL(window.parent.location.href);
-            url.searchParams.delete('cart');
-            window.parent.history.replaceState({{}}, '', url.pathname + (url.search ? url.search : '') + url.hash);
-        }} catch (e) {{
-            console.error('Aplytec: no se pudo guardar el último pedido', e);
-        }}
-        </script>
-        """,
-        height=0,
-    )
-
-    # Guardado de compatibilidad: si la librería antigua está instalada, también
-    # intentamos escribir LocalStorage, pero ya no dependemos de él.
-    if LOCAL_STORAGE_DISPONIBLE:
-        try:
-            local_s = LocalStorage()
-            local_s.setItem(
-                ULTIMO_PEDIDO_STORAGE_KEY,
-                json.dumps(payload, ensure_ascii=False),
-                key="aplytec_set_ultimo_pedido",
-            )
-        except Exception:
-            pass
-    return True
-
-
-def cargar_pedido_guardado_en_carrito(pedido, df):
-    """Recupera cantidades/formato, pero usa siempre nombre y precio actuales del catálogo."""
-    if not pedido or not isinstance(pedido.get("items"), list):
-        return 0, 0
-
-    por_codigo = {}
-    for _, fila in df.iterrows():
-        codigo = str(fila.get("Código", "")).strip()
-        if codigo:
-            por_codigo[codigo] = fila
-
-    nuevo_carrito = []
-    no_encontrados = 0
-    next_id = 1
-    for guardado in pedido["items"]:
-        codigo = str(guardado.get("Código", "")).strip()
-        fila = por_codigo.get(codigo)
-        if fila is None:
-            no_encontrados += 1
-            continue
-        cantidad = max(1, int(guardado.get("Cantidad", 1)))
-        tipo = str(guardado.get("Tipo", "unidades"))
-        if tipo not in FORMATOS:
-            tipo = "unidades"
-        nuevo_carrito.append({
-            "id": next_id,
-            "Código": codigo,
-            "Nombre": str(fila.get("Nombre", guardado.get("Nombre", ""))),
-            "Cantidad": cantidad,
-            "Tipo": tipo,
-            "PrecioUnitario": float(fila.get("Precio", 0.0)),
-        })
-        next_id += 1
-
-    if nuevo_carrito:
-        st.session_state.carrito = nuevo_carrito
-        st.session_state.next_cart_id = next_id
-        st.session_state.pdf_generado = False
-        if pedido.get("nombre"):
-            st.session_state["pedido_nombre"] = str(pedido.get("nombre", ""))
-        if pedido.get("telefono"):
-            st.session_state["pedido_telefono"] = str(pedido.get("telefono", ""))
-        sync_query_params()
-
-    return len(nuevo_carrito), no_encontrados
-
-def render_inicio(df):
+def render_inicio():
     logo_src = obtener_logo_src()
 
     render_aply(APLY_SALUDA, "Hola, soy Aply. Entra al catálogo y prepara tu pedido en pocos pasos.", altura=280)
@@ -814,27 +612,6 @@ def render_inicio(df):
     if st.button("📦 Entrar al catálogo", key="btn_inicio_catalogo", type="primary", use_container_width=True):
         ir_a_catalogo()
         st.rerun()
-
-    # El componente de LocalStorage puede necesitar más de un render para devolver
-    # un valor. Primero usamos la copia de sesión, si existe, y después el navegador.
-    ultimo_pedido = st.session_state.get("aplytec_ultimo_pedido_memoria")
-    pedido_navegador = leer_ultimo_pedido_navegador()
-    if pedido_navegador:
-        ultimo_pedido = pedido_navegador
-        st.session_state["aplytec_ultimo_pedido_memoria"] = pedido_navegador
-
-    # El botón siempre se muestra. Si todavía no hay pedido guardado, explicamos el motivo.
-    if st.button("🔁 Repetir último pedido", key="btn_repetir_ultimo_pedido", use_container_width=True):
-        if ultimo_pedido:
-            cargados, no_encontrados = cargar_pedido_guardado_en_carrito(ultimo_pedido, df)
-            if cargados:
-                st.session_state.pantalla_actual = "carrito"
-                sync_query_params()
-                st.rerun()
-            elif no_encontrados:
-                st.warning("No se han encontrado en el catálogo actual los productos del último pedido.")
-        else:
-            st.info("Todavía no hay un pedido guardado en este navegador. Envía un pedido con esta versión y después podrás repetirlo desde aquí.")
 
     st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
     st.markdown(
@@ -866,14 +643,35 @@ def render_contacto():
 
 
 def render_carrito():
+    ruta_pdf = "resumen_pedido.pdf"
+
+    # Pantalla final independiente del carrito. Tras un envío correcto no volvemos
+    # a mostrar el formulario, evitando cualquier posibilidad de un segundo envío.
+    if st.session_state.get("pedido_enviado_ok", False):
+        render_aply(APLY_CARRITO, "¡Pedido recibido! Te lo confirmamos y dejamos el carrito listo para un pedido nuevo.", altura=230)
+        st.success("✅ Pedido enviado correctamente")
+        st.markdown("### Gracias por tu pedido")
+        st.caption("El pedido se ha enviado una sola vez y el carrito ya está vacío.")
+
+        if st.session_state.get("pdf_generado", False) and Path(ruta_pdf).exists():
+            with open(ruta_pdf, "rb") as f:
+                st.download_button(
+                    "📄 Descargar resumen del pedido",
+                    f,
+                    file_name="resumen_pedido.pdf",
+                    use_container_width=True,
+                    key="descargar_pdf_post_envio",
+                )
+
+        if st.button("📦 Volver al catálogo", use_container_width=True, key="volver_catalogo_post_envio"):
+            st.session_state.pedido_enviado_ok = False
+            ir_a_catalogo()
+            st.rerun()
+        return
+
     render_aply(APLY_CARRITO, "Revisa tu pedido y no olvides indicar tu nombre y tu teléfono.", altura=230)
     st.markdown("<div style='height: 0.45rem;'></div>", unsafe_allow_html=True)
     st.markdown("## 🛒 Mi carrito")
-    ruta_pdf = "resumen_pedido.pdf"
-
-    if st.session_state.get("pedido_enviado_confirmacion"):
-        st.success("✅ Pedido enviado correctamente")
-        st.caption("Puedes cerrar esta página con tranquilidad. El pedido ya ha sido enviado una sola vez.")
 
     st.markdown(
         """
@@ -1073,22 +871,32 @@ def render_carrito():
                         f"Telefono: {telefono_limpio}\n\n{resumen}\n"
                         f"Total: {total:.2f} euros (IVA incluido)\n\nComentarios: {comentarios}"
                     )
-                    generar_pdf(nombre_limpio, resumen, total, comentarios, ruta_pdf)
-                    enviar_pedido_por_email("Nuevo pedido de catálogo", resumen_txt, ruta_pdf)
+                    # Huella del pedido para impedir que el mismo envío pueda ejecutarse
+                    # dos veces dentro de la misma sesión por un rerun accidental.
+                    envio_hash = hashlib.sha256(resumen_txt.encode("utf-8")).hexdigest()
+                    if st.session_state.get("ultimo_envio_hash") == envio_hash:
+                        st.session_state.pedido_enviado_ok = True
+                        st.session_state.carrito = []
+                    else:
+                        try:
+                            generar_pdf(nombre_limpio, resumen, total, comentarios, ruta_pdf)
+                            enviar_pedido_por_email("Nuevo pedido de catálogo", resumen_txt, ruta_pdf)
+                        except Exception as exc:
+                            st.error("No se ha podido enviar el pedido. No se ha vaciado el carrito; puedes volver a intentarlo.")
+                        else:
+                            # Marcamos el envío como completado ANTES del rerun y vaciamos
+                            # el carrito tanto de session_state como de la URL.
+                            st.session_state.ultimo_envio_hash = envio_hash
+                            st.session_state.pedido_enviado_ok = True
+                            st.session_state.pdf_generado = True
+                            st.session_state.carrito = []
 
-                    # Guardamos el pedido ANTES de vaciar el carrito para poder repetirlo
-                    # en futuras visitas desde este mismo navegador/dispositivo.
-                    guardar_ultimo_pedido_navegador(
-                        nombre_limpio,
-                        telefono_limpio,
-                        list(st.session_state.carrito),
-                    )
-
-                    st.session_state.pdf_generado = True
-                    st.session_state.carrito = []
-                    st.session_state["pedido_enviado_confirmacion"] = True
-                    st.success("✅ Pedido enviado correctamente")
-                    st.caption("Este pedido se ha guardado para poder usar ‘Repetir último pedido’ en este navegador.")
+                            params = {"pantalla": "carrito"}
+                            st.session_state.familia_actual = None
+                            st.session_state.subfamilia_actual = None
+                            st.query_params.clear()
+                            st.query_params.update(params)
+                            st.rerun()
 
         b1, b2 = st.columns(2)
         with b1:
@@ -1104,6 +912,7 @@ def render_carrito():
             if st.button("🗑️ Vaciar carrito", use_container_width=True):
                 st.session_state.carrito = []
                 st.session_state.pdf_generado = False
+                st.session_state.pedido_enviado_ok = False
                 sync_query_params()
                 st.rerun()
     else:
@@ -1407,14 +1216,16 @@ if "subfamilia_actual" not in st.session_state:
     st.session_state.subfamilia_actual = None
 if "pdf_generado" not in st.session_state:
     st.session_state.pdf_generado = False
-if "pedido_enviado_confirmacion" not in st.session_state:
-    st.session_state.pedido_enviado_confirmacion = False
+if "pedido_enviado_ok" not in st.session_state:
+    st.session_state.pedido_enviado_ok = False
+if "ultimo_envio_hash" not in st.session_state:
+    st.session_state.ultimo_envio_hash = None
 if "pantalla_actual" not in st.session_state:
     st.session_state.pantalla_actual = "inicio"
 
 qp = st.query_params
 cart_qp = qp.get("cart")
-if cart_qp:
+if cart_qp and not st.session_state.get("pedido_enviado_ok", False):
     carrito_qp = restaurar_carrito_desde_qp(cart_qp)
     if carrito_qp:
         st.session_state.carrito = carrito_qp
@@ -1436,7 +1247,7 @@ render_menu_superior()
 render_boton_carrito_flotante()
 
 if st.session_state.pantalla_actual == "inicio":
-    render_inicio(df)
+    render_inicio()
 elif st.session_state.pantalla_actual == "contacto":
     render_contacto()
 elif st.session_state.pantalla_actual == "carrito":
