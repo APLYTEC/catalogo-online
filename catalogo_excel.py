@@ -5,6 +5,8 @@ import smtplib
 import ssl
 import base64
 import json
+import re
+import unicodedata
 from urllib.parse import quote, unquote
 from email.message import EmailMessage
 from fpdf import FPDF
@@ -164,25 +166,85 @@ def obtener_ruta_imagen_familia(nombre_familia):
 
 
 
-def obtener_ruta_imagen_subfamilia_quimicos(subfamilia):
-    mapa = {
-        "Lavavajillas": "sub_quimicos_lavavajillas",
-        "Desengrasantes": "sub_quimicos_desengrasantes",
-        "Suelos y superficies": "sub_quimicos_suelos_superficies",
-        "Baños y sanitarios": "sub_quimicos_banos_sanitarios",
-        "Desinfección": "sub_quimicos_desinfeccion",
-        "Lavandería": "sub_quimicos_lavanderia",
-        "Ambientadores": "sub_quimicos_ambientadores",
-        "Aseo personal": "sub_quimicos_aseo_personal",
-    }
-    nombre = mapa.get(str(subfamilia).strip())
-    if not nombre:
+def _slug_visual(texto):
+    texto = unicodedata.normalize("NFKD", str(texto))
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    texto = texto.lower().replace("ñ", "n")
+    texto = re.sub(r"[^a-z0-9]+", "_", texto).strip("_")
+    return texto
+
+
+def _tokens_visual(texto):
+    ignorar = {"y", "e", "de", "del", "la", "las", "el", "los", "para", "uso"}
+    return {t for t in _slug_visual(texto).split("_") if t and t not in ignorar}
+
+
+def obtener_ruta_imagen_subfamilia(familia, subfamilia):
+    # Químicos conserva el mapa exacto que ya estaba funcionando.
+    if familia == "Químicos":
+        mapa = {
+            "Lavavajillas": "sub_quimicos_lavavajillas",
+            "Desengrasantes": "sub_quimicos_desengrasantes",
+            "Suelos y superficies": "sub_quimicos_suelos_superficies",
+            "Baños y sanitarios": "sub_quimicos_banos_sanitarios",
+            "Desinfección": "sub_quimicos_desinfeccion",
+            "Lavandería": "sub_quimicos_lavanderia",
+            "Ambientadores": "sub_quimicos_ambientadores",
+            "Aseo personal": "sub_quimicos_aseo_personal",
+        }
+        nombre = mapa.get(str(subfamilia).strip())
+        if nombre:
+            for ext in [".png", ".jpg", ".jpeg", ".webp"]:
+                ruta = CARPETA_IMAGENES / f"{nombre}{ext}"
+                if ruta.exists():
+                    return ruta
+
+    # Para el resto de familias aprovecha automáticamente las imágenes sub_*
+    # que ya existen en el repositorio. Se elige la más parecida al nombre
+    # real de la subfamilia del Excel.
+    prefijo = f"sub_{_slug_visual(familia)}_"
+    candidatos = []
+    for ruta in CARPETA_IMAGENES.iterdir() if CARPETA_IMAGENES.exists() else []:
+        if not ruta.is_file() or ruta.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
+            continue
+        stem = _slug_visual(ruta.stem)
+        if not stem.startswith(prefijo):
+            continue
+        candidatos.append(ruta)
+
+    if not candidatos:
         return None
-    for ext in [".png", ".jpg", ".jpeg", ".webp"]:
-        ruta = CARPETA_IMAGENES / f"{nombre}{ext}"
-        if ruta.exists():
-            return ruta
-    return None
+
+    objetivo_slug = _slug_visual(subfamilia)
+    objetivo_tokens = _tokens_visual(subfamilia)
+
+    mejor = None
+    mejor_puntos = -1
+    for ruta in candidatos:
+        sufijo = _slug_visual(ruta.stem)[len(prefijo):]
+        tokens = _tokens_visual(sufijo)
+
+        # Coincidencia exacta, contenida o por palabras compartidas.
+        puntos = 0
+        if sufijo == objetivo_slug:
+            puntos += 100
+        if objetivo_slug and (objetivo_slug in sufijo or sufijo in objetivo_slug):
+            puntos += 40
+        comunes = objetivo_tokens & tokens
+        puntos += len(comunes) * 12
+        if objetivo_tokens:
+            puntos += int(20 * len(comunes) / len(objetivo_tokens))
+
+        if puntos > mejor_puntos:
+            mejor_puntos = puntos
+            mejor = ruta
+
+    # Evita asignar una imagen claramente no relacionada.
+    return mejor if mejor_puntos >= 12 else None
+
+
+def obtener_ruta_imagen_subfamilia_quimicos(subfamilia):
+    return obtener_ruta_imagen_subfamilia("Químicos", subfamilia)
 
 def _mtime_seguro(ruta):
     try:
@@ -877,17 +939,24 @@ def render_rejilla_familias():
     render_rejilla_component(items)
 
 
-def render_rejilla_subfamilias_quimicos():
+def render_rejilla_subfamilias(familia, subfamilias):
     items = []
-    for subfamilia, _archivo in QUIMICOS_SUBFAMILIAS_ORDENADAS:
-        img = obtener_ruta_imagen_subfamilia_quimicos(subfamilia)
+    for subfamilia in subfamilias:
+        img = obtener_ruta_imagen_subfamilia(familia, subfamilia)
         items.append({
-            "href": qp_url(pantalla="catalogo", familia="Químicos", subfamilia=subfamilia),
+            "href": qp_url(pantalla="catalogo", familia=familia, subfamilia=subfamilia),
             "alt": subfamilia,
             "img": imagen_data_uri(img) if img and img.exists() else None,
             "fallback": subfamilia,
         })
     render_rejilla_component(items)
+
+
+def render_rejilla_subfamilias_quimicos():
+    render_rejilla_subfamilias(
+        "Químicos",
+        [subfamilia for subfamilia, _archivo in QUIMICOS_SUBFAMILIAS_ORDENADAS],
+    )
 
 
 def construir_mapa_cantidades_carrito():
@@ -1036,26 +1105,21 @@ def render_catalogo(df):
 
             render_aply(APLY_SENALA, "Elige una subfamilia para ver los productos.", altura=190)
             if familia_actual == "Químicos":
-                st.markdown("### Selecciona una subfamilia")
-                render_rejilla_subfamilias_quimicos()
-                return
-            subfamilias = (
-                df[df["Familia"] == familia_actual]["Subfamilia"]
-                .dropna()
-                .astype(str)
-                .str.strip()
-                .replace("", "Otros")
-                .unique()
-                .tolist()
-            )
-            subfamilias = sorted(subfamilias)
+                subfamilias = [subfamilia for subfamilia, _archivo in QUIMICOS_SUBFAMILIAS_ORDENADAS]
+            else:
+                subfamilias = (
+                    df[df["Familia"] == familia_actual]["Subfamilia"]
+                    .dropna()
+                    .astype(str)
+                    .str.strip()
+                    .replace("", "Otros")
+                    .unique()
+                    .tolist()
+                )
+                subfamilias = sorted(subfamilias)
+
             st.markdown("### Selecciona una subfamilia")
-            cols = st.columns(3)
-            for i, sub in enumerate(subfamilias):
-                with cols[i % 3]:
-                    if st.button(sub, key=f"btn_sub_{sub}", use_container_width=True):
-                        st.session_state.subfamilia_actual = sub
-                        st.rerun()
+            render_rejilla_subfamilias(familia_actual, subfamilias)
             return
 
     subfamilia_actual = st.session_state.subfamilia_actual
