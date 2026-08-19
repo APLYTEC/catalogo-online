@@ -13,6 +13,7 @@ import ssl
 import base64
 import json
 import time
+import zlib
 import re
 import unicodedata
 from urllib.parse import quote, unquote
@@ -366,6 +367,7 @@ def qp_url(pantalla=None, familia=None, subfamilia=None):
 
 
 def agregar_o_sumar_al_carrito(codigo, nombre, tipo, precio_con_iva, cantidad=1):
+    st.session_state["pedido_enviado_confirmacion"] = False
     existente = None
     for item in st.session_state.carrito:
         if item["Código"] == codigo and item["Tipo"] == tipo:
@@ -621,31 +623,61 @@ def _parsear_ultimo_pedido(valor):
     return data
 
 
-def leer_ultimo_pedido_navegador():
-    if not LOCAL_STORAGE_DISPONIBLE:
+def _codificar_pedido_cookie(payload):
+    try:
+        bruto = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        comprimido = zlib.compress(bruto, 9)
+        return base64.urlsafe_b64encode(comprimido).decode("ascii").rstrip("=")
+    except Exception:
+        return ""
+
+
+def _decodificar_pedido_cookie(valor):
+    if not valor:
         return None
     try:
-        # El componente puede tardar un render en devolver el dato. Si ya lo dejó
-        # en session_state, lo aprovechamos antes de volver a pedirlo.
-        valor_estado = st.session_state.get("aplytec_get_ultimo_pedido")
-        pedido_estado = _parsear_ultimo_pedido(valor_estado)
-        if pedido_estado:
-            return pedido_estado
-
-        local_s = LocalStorage()
-        valor = local_s.getItem(
-            ULTIMO_PEDIDO_STORAGE_KEY,
-            key="aplytec_get_ultimo_pedido",
-        )
-        pedido = _parsear_ultimo_pedido(valor)
-        if pedido:
-            return pedido
-
-        # En algunas ejecuciones el valor se deposita en session_state durante
-        # el render del componente. Lo revisamos una segunda vez.
-        return _parsear_ultimo_pedido(st.session_state.get("aplytec_get_ultimo_pedido"))
+        txt = str(valor)
+        txt += "=" * (-len(txt) % 4)
+        bruto = zlib.decompress(base64.urlsafe_b64decode(txt.encode("ascii"))).decode("utf-8")
+        return _parsear_ultimo_pedido(bruto)
     except Exception:
         return None
+
+
+def leer_ultimo_pedido_navegador():
+    # 1) Copia de la sesión actual.
+    memoria = st.session_state.get("aplytec_ultimo_pedido_memoria")
+    if memoria:
+        return memoria
+
+    # 2) Cookie persistente. st.context.cookies se obtiene al iniciar la sesión
+    # y por tanto sobrevive a cerrar el navegador y volver a abrir la app.
+    try:
+        cookie_valor = st.context.cookies.get(ULTIMO_PEDIDO_STORAGE_KEY)
+        pedido = _decodificar_pedido_cookie(cookie_valor)
+        if pedido:
+            return pedido
+    except Exception:
+        pass
+
+    # 3) Compatibilidad con las versiones anteriores basadas en LocalStorage.
+    if LOCAL_STORAGE_DISPONIBLE:
+        try:
+            valor_estado = st.session_state.get("aplytec_get_ultimo_pedido")
+            pedido_estado = _parsear_ultimo_pedido(valor_estado)
+            if pedido_estado:
+                return pedido_estado
+            local_s = LocalStorage()
+            valor = local_s.getItem(
+                ULTIMO_PEDIDO_STORAGE_KEY,
+                key="aplytec_get_ultimo_pedido",
+            )
+            pedido = _parsear_ultimo_pedido(valor)
+            if pedido:
+                return pedido
+        except Exception:
+            pass
+    return None
 
 
 def guardar_ultimo_pedido_navegador(nombre, telefono, carrito):
@@ -664,26 +696,49 @@ def guardar_ultimo_pedido_navegador(nombre, telefono, carrito):
         ],
     }
 
-    # Copia inmediata en la sesión actual. Así el botón Repetir pedido
-    # funciona nada más enviar, sin depender del tiempo de respuesta del componente.
     st.session_state["aplytec_ultimo_pedido_memoria"] = payload
+    cookie_valor = _codificar_pedido_cookie(payload)
+    if not cookie_valor:
+        return False
 
-    if not LOCAL_STORAGE_DISPONIBLE:
-        return False
-    try:
-        local_s = LocalStorage()
-        local_s.setItem(
-            ULTIMO_PEDIDO_STORAGE_KEY,
-            json.dumps(payload, ensure_ascii=False),
-            key="aplytec_set_ultimo_pedido",
-        )
-        # El componente escribe en el navegador de forma asíncrona.
-        # Si Streamlit continúa y provoca un rerun demasiado pronto, la escritura
-        # puede quedar cancelada. La propia documentación recomienda esperar.
-        time.sleep(1.8)
-        return True
-    except Exception:
-        return False
+    # La cookie se escribe en el documento principal del navegador. En el mismo
+    # script eliminamos el carrito antiguo de la URL para que un rerun posterior
+    # no pueda reconstruir un pedido ya enviado.
+    js_cookie = json.dumps(cookie_valor)
+    js_nombre = json.dumps(ULTIMO_PEDIDO_STORAGE_KEY)
+    components.html(
+        f"""
+        <script>
+        try {{
+            const doc = window.parent.document;
+            const cookieName = {js_nombre};
+            const cookieValue = {js_cookie};
+            doc.cookie = cookieName + '=' + cookieValue + '; Max-Age=31536000; Path=/; SameSite=Lax';
+
+            const url = new URL(window.parent.location.href);
+            url.searchParams.delete('cart');
+            window.parent.history.replaceState({{}}, '', url.pathname + (url.search ? url.search : '') + url.hash);
+        }} catch (e) {{
+            console.error('Aplytec: no se pudo guardar el último pedido', e);
+        }}
+        </script>
+        """,
+        height=0,
+    )
+
+    # Guardado de compatibilidad: si la librería antigua está instalada, también
+    # intentamos escribir LocalStorage, pero ya no dependemos de él.
+    if LOCAL_STORAGE_DISPONIBLE:
+        try:
+            local_s = LocalStorage()
+            local_s.setItem(
+                ULTIMO_PEDIDO_STORAGE_KEY,
+                json.dumps(payload, ensure_ascii=False),
+                key="aplytec_set_ultimo_pedido",
+            )
+        except Exception:
+            pass
+    return True
 
 
 def cargar_pedido_guardado_en_carrito(pedido, df):
@@ -815,6 +870,10 @@ def render_carrito():
     st.markdown("<div style='height: 0.45rem;'></div>", unsafe_allow_html=True)
     st.markdown("## 🛒 Mi carrito")
     ruta_pdf = "resumen_pedido.pdf"
+
+    if st.session_state.get("pedido_enviado_confirmacion"):
+        st.success("✅ Pedido enviado correctamente")
+        st.caption("Puedes cerrar esta página con tranquilidad. El pedido ya ha sido enviado una sola vez.")
 
     st.markdown(
         """
@@ -1025,11 +1084,11 @@ def render_carrito():
                         list(st.session_state.carrito),
                     )
 
-                    st.success("✅ Pedido enviado correctamente")
-                    st.caption("Este pedido se ha guardado para poder usar ‘Repetir último pedido’ en este navegador.")
                     st.session_state.pdf_generado = True
                     st.session_state.carrito = []
-                    sync_query_params()
+                    st.session_state["pedido_enviado_confirmacion"] = True
+                    st.success("✅ Pedido enviado correctamente")
+                    st.caption("Este pedido se ha guardado para poder usar ‘Repetir último pedido’ en este navegador.")
 
         b1, b2 = st.columns(2)
         with b1:
@@ -1348,6 +1407,8 @@ if "subfamilia_actual" not in st.session_state:
     st.session_state.subfamilia_actual = None
 if "pdf_generado" not in st.session_state:
     st.session_state.pdf_generado = False
+if "pedido_enviado_confirmacion" not in st.session_state:
+    st.session_state.pedido_enviado_confirmacion = False
 if "pantalla_actual" not in st.session_state:
     st.session_state.pantalla_actual = "inicio"
 
