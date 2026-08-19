@@ -5,7 +5,6 @@ import smtplib
 import ssl
 import base64
 import json
-import uuid
 from urllib.parse import quote
 from email.message import EmailMessage
 from fpdf import FPDF
@@ -13,7 +12,6 @@ from pathlib import Path
 
 ARCHIVO_EXCEL = "PRUEBA_CLASIFICADO.xlsx"
 CARPETA_IMAGENES = Path("imagenes")
-CARPETAS_IMAGENES_CANDIDATAS = [Path("imagenes"), Path("Imagenes"), Path("image"), Path("images")]
 
 EMAIL_REMITENTE = "jguzmanraya@gmail.com"
 EMAIL_DESTINO = "jguzmanraya@gmail.com"
@@ -28,58 +26,6 @@ APLY_SENALA = CARPETA_IMAGENES / "aply_senalando.png"
 APLY_CARRITO = CARPETA_IMAGENES / "aply_carrito.png"
 APLY_MOVIL = CARPETA_IMAGENES / "aply_movil.png"
 
-
-CARRITOS_TEMP_DIR = Path("/tmp/aplytec_carritos")
-
-def generar_sid_carrito():
-    return uuid.uuid4().hex
-
-def _ruta_carrito_servidor(sid):
-    sid = str(sid or '').strip()
-    if not sid:
-        return None
-    CARRITOS_TEMP_DIR.mkdir(parents=True, exist_ok=True)
-    return CARRITOS_TEMP_DIR / f"{sid}.json"
-
-def guardar_carrito_servidor(sid, carrito):
-    ruta = _ruta_carrito_servidor(sid)
-    if ruta is None:
-        return
-    try:
-        data = []
-        for item in (carrito or []):
-            data.append({
-                "id": int(item.get("id", 0)),
-                "Código": str(item.get("Código", "")),
-                "Nombre": str(item.get("Nombre", "")),
-                "Cantidad": int(item.get("Cantidad", 0)),
-                "Tipo": str(item.get("Tipo", "")),
-                "PrecioUnitario": float(item.get("PrecioUnitario", 0.0)),
-            })
-        ruta.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
-    except Exception:
-        pass
-
-def cargar_carrito_servidor(sid):
-    ruta = _ruta_carrito_servidor(sid)
-    if ruta is None or not ruta.exists():
-        return []
-    try:
-        data = json.loads(ruta.read_text(encoding='utf-8'))
-        carrito = []
-        for item in data:
-            carrito.append({
-                "id": int(item.get("id", 0)),
-                "Código": str(item.get("Código", "")),
-                "Nombre": str(item.get("Nombre", "")),
-                "Cantidad": int(item.get("Cantidad", 0)),
-                "Tipo": str(item.get("Tipo", "")),
-                "PrecioUnitario": float(item.get("PrecioUnitario", 0.0)),
-            })
-        return carrito
-    except Exception:
-        return []
-
 QUIMICOS_SUBFAMILIAS_ORDENADAS = [
     ("Lavavajillas", "sub_quimicos_lavavajillas.png"),
     ("Desengrasantes", "sub_quimicos_desengrasantes.png"),
@@ -89,65 +35,6 @@ QUIMICOS_SUBFAMILIAS_ORDENADAS = [
     ("Lavandería", "sub_quimicos_lavanderia.png"),
     ("Ambientadores", "sub_quimicos_ambientadores.png"),
     ("Aseo personal", "sub_quimicos_aseo_personal.png"),
-]
-
-CELULOSAS_SUBFAMILIAS_ORDENADAS = [
-    ("Servilletas", "sub_celulosas_servilletas.png"),
-    ("Manteles y mantelines", "sub_celulosas_manteles_mantelines.png"),
-    ("Toallas", "sub_celulosas_toallas.png"),
-    ("Papel higiénico industrial / jumbo", "sub_celulosas_papel_higienico_industrial_jumbo.png"),
-    ("Bobinas y papel mecha", "sub_celulosas_bobinas_papel_mecha.png"),
-    ("Papel higiénico doméstico", "sub_celulosas_papel_higienico_domestico.png"),
-    ("Papel camilla y sanitario", "sub_celulosas_papel_camilla_sanitario.png"),
-    ("Pañuelos y toallitas", "sub_celulosas_panuelos_toallitas.png"),
-]
-
-UTILES_SUBFAMILIAS_ORDENADAS = [
-    ("Bayetas, paños y estropajos", "sub_utiles_bayetas_panos_estropajos.png"),
-    ("Mopas, fregonas y recambios", "sub_utiles_mopas_fregonas_recambios.png"),
-    ("Escobas, cepillos y recogedores", "sub_utiles_escobas_cepillos_recogedores.png"),
-    ("Limpiacristales y útiles de cristalería", "sub_utiles_limpiacristales_utiles_cristaleria.png"),
-    ("Cubos, carros y escurridores", "sub_utiles_cubos_carros_escurridores.png"),
-    ("Pulverizadores, dosificación y señalización", "sub_utiles_pulverizadores_dosificacion_senalizacion.png"),
-    ("Guantes y protección", "sub_utiles_guantes_proteccion.png"),
-    ("Otros útiles y accesorios", "sub_utiles_otros_utiles_accesorios.png"),
-]
-
-DESECHABLES_SUBFAMILIAS_ORDENADAS = [
-    ("Bolsas de basura y sacos", "sub_desechables_bolsas_basura_sacos.png"),
-    ("Bolsas alimentarias y uso especial", "sub_desechables_bolsas_alimentarias_uso_especial.png"),
-    ("Guantes desechables", "sub_desechables_guantes_desechables.png"),
-    ("Vestuario y protección desechable", "sub_desechables_vestuario_proteccion_desechable.png"),
-    ("Vajilla desechable y reutilizable", "sub_desechables_vajilla_desechable_reutilizable.png"),
-    ("Envases, tapas y tarrinas", "sub_desechables_envases_tapas_tarrinas.png"),
-    ("Films, aluminio y precintos", "sub_desechables_films_aluminio_precintos.png"),
-    ("Higiene y consumibles desechables", "sub_desechables_higiene_consumibles_desechables.png"),
-]
-
-EQUIPAMIENTO_SUBFAMILIAS_ORDENADAS = [
-    ("Dispensadores de jabón y gel", "sub_equipamiento_dispensadores_jabon_gel.png"),
-    ("Dispensadores de papel higiénico", "sub_equipamiento_dispensadores_papel_higienico.png"),
-    ("Dispensadores de toallas, mecha y servilletas", "sub_equipamiento_dispensadores_toallas_mecha_servilletas.png"),
-    ("Dosificación y dilución química", "sub_equipamiento_dosificacion_dilucion_quimica.png"),
-    ("Ambientación y urinarios", "sub_equipamiento_ambientacion_urinarios.png"),
-    ("Accesorios de baño y sala", "sub_equipamiento_accesorios_bano_sala.png"),
-    ("Carros, soportes y mobiliario auxiliar", "sub_equipamiento_carros_soportes_mobiliario_auxiliar.png"),
-    ("Otros equipamientos", "sub_equipamiento_otros_equipamientos.png"),
-]
-
-MAQUINAS_SUBFAMILIAS_ORDENADAS = [
-    ("Máquinas de limpieza de suelos", "sub_maquinas_limpieza_suelos.png"),
-    ("Lavado industrial, cocina y lavandería", "sub_maquinas_lavado_industrial_cocina_lavanderia.png"),
-    ("Dosificación, dilución y laboratorio", "sub_maquinas_dosificacion_dilucion_laboratorio.png"),
-    ("Repuestos, accesorios y SAT", "sub_maquinas_repuestos_accesorios_sat.png"),
-]
-
-OTROS_SUBFAMILIAS_ORDENADAS = [
-    ("Otros", "familia_7.png"),
-]
-
-SERVICIOS_SUBFAMILIAS_ORDENADAS = [
-    ("Otros", "familia_9.png"),
 ]
 
 FAMILIAS_ORDENADAS = [
@@ -165,16 +52,12 @@ FAMILIAS = {nombre: {"id": fam_id, "icono": icono} for nombre, fam_id, icono in 
 FORMATOS = ["unidades", "cajas", "paquetes"]
 
 
-class DocumentoPDF(FPDF):
-    def __init__(self, titulo_documento="Pedido"):
-        super().__init__()
-        self.titulo_documento = titulo_documento
-
+class PedidoPDF(FPDF):
     def header(self):
         if Path("images.png").exists():
             self.image("images.png", 10, 8, 33)
         self.set_font("Arial", "B", 15)
-        self.cell(0, 10, f"APLYTEC - {self.titulo_documento}", ln=True, align="C")
+        self.cell(0, 10, "APLYTEC - Resumen de Pedido", ln=True, align="C")
         self.ln(10)
 
     def footer(self):
@@ -183,60 +66,24 @@ class DocumentoPDF(FPDF):
         self.cell(0, 10, "Pagina " + str(self.page_no()), 0, 0, "C")
 
 
-def _asegurar_espacio_pdf(pdf, alto_necesario=25):
-    if pdf.get_y() + alto_necesario > 270:
-        pdf.add_page()
-
-
-def generar_pdf(nombre, resumen, total, comentarios, output_path, tipo_documento="pedido", incluir_imagenes=False, carrito=None, telefono=""):
-    titulo = "Presupuesto" if str(tipo_documento).lower() == "presupuesto" else "Pedido"
-    pdf = DocumentoPDF(titulo)
-    pdf.set_auto_page_break(auto=True, margin=15)
+def generar_pdf(nombre, resumen, total, comentarios, output_path):
+    pdf = PedidoPDF()
     pdf.add_page()
     pdf.set_font("Arial", "", 12)
     pdf.cell(0, 10, f"Cliente: {nombre}", ln=True)
-    if telefono:
-        pdf.cell(0, 10, f"Telefono: {telefono}", ln=True)
-    pdf.ln(3)
-
-    if incluir_imagenes and carrito:
-        for item in carrito:
-            _asegurar_espacio_pdf(pdf, 34)
-            ruta_img = obtener_ruta_imagen_producto(item.get("Código", ""))
-            y_inicio = pdf.get_y()
-            if ruta_img and Path(ruta_img).exists():
-                try:
-                    pdf.image(str(ruta_img), x=10, y=y_inicio, w=24, h=24)
-                except Exception:
-                    pass
-            pdf.set_xy(38, y_inicio)
-            pdf.set_font("Arial", "B", 11)
-            pdf.multi_cell(0, 6, str(item.get("Nombre", "")))
-            pdf.set_x(38)
-            pdf.set_font("Arial", "", 10)
-            subtotal = float(item.get("Cantidad", 0)) * float(item.get("PrecioUnitario", 0.0))
-            pdf.multi_cell(0, 5, f"Codigo: {item.get('Código', '')}\nCantidad: {item.get('Cantidad', 0)} {item.get('Tipo', '')}\nSubtotal: {subtotal:.2f} euros")
-            pdf.ln(2)
-    else:
-        pdf.multi_cell(0, 8, resumen)
-
-    pdf.ln(4)
+    pdf.ln(5)
+    pdf.multi_cell(0, 10, resumen)
+    pdf.ln(5)
     pdf.set_font("Arial", "B", 12)
-    etiqueta_total = "Total del presupuesto" if titulo == "Presupuesto" else "Total del pedido"
-    pdf.cell(0, 10, f"{etiqueta_total}: {total:.2f} euros (IVA incluido)", ln=True)
-
-    if titulo == "Presupuesto":
-        pdf.set_font("Arial", "I", 10)
-        pdf.multi_cell(0, 8, "Presupuesto sujeto a disponibilidad y revision de precios.")
-
+    pdf.cell(0, 10, f"Total del pedido: {total:.2f} euros (IVA incluido)", ln=True)
     if comentarios:
-        pdf.ln(6)
+        pdf.ln(10)
         pdf.set_font("Arial", "I", 11)
-        pdf.multi_cell(0, 8, f"Comentarios: {comentarios}")
+        pdf.multi_cell(0, 10, f"Comentarios: {comentarios}")
     pdf.output(output_path)
 
 
-def enviar_documento_por_email(asunto, cuerpo, adjunto_path, nombre_adjunto="documento.pdf"):
+def enviar_pedido_por_email(asunto, cuerpo, adjunto_path):
     msg = EmailMessage()
     msg["From"] = EMAIL_REMITENTE
     msg["To"] = EMAIL_DESTINO
@@ -249,49 +96,13 @@ def enviar_documento_por_email(asunto, cuerpo, adjunto_path, nombre_adjunto="doc
                 f.read(),
                 maintype="application",
                 subtype="pdf",
-                filename=nombre_adjunto,
+                filename="resumen_pedido.pdf",
             )
 
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
         server.login(EMAIL_REMITENTE, CONTRASENA_APP)
         server.send_message(msg)
-
-
-def obtener_configuracion_documento(opcion):
-    opcion = str(opcion).strip()
-    if opcion == "Presupuesto con imágenes":
-        return {
-            "tipo_documento": "presupuesto",
-            "incluir_imagenes": True,
-            "titulo": "Presupuesto",
-            "archivo": "presupuesto_con_imagenes.pdf",
-            "asunto": "Nuevo presupuesto de catálogo",
-            "boton": "📨 Enviar presupuesto con imágenes",
-            "success": "✅ Presupuesto con imágenes enviado correctamente",
-            "download": "📄 Descargar presupuesto con imágenes",
-        }
-    if opcion == "Presupuesto sin imágenes":
-        return {
-            "tipo_documento": "presupuesto",
-            "incluir_imagenes": False,
-            "titulo": "Presupuesto",
-            "archivo": "presupuesto_sin_imagenes.pdf",
-            "asunto": "Nuevo presupuesto de catálogo",
-            "boton": "📨 Enviar presupuesto",
-            "success": "✅ Presupuesto enviado correctamente",
-            "download": "📄 Descargar presupuesto",
-        }
-    return {
-        "tipo_documento": "pedido",
-        "incluir_imagenes": False,
-        "titulo": "Pedido",
-        "archivo": "resumen_pedido.pdf",
-        "asunto": "Nuevo pedido de catálogo",
-        "boton": "📨 Enviar pedido",
-        "success": "✅ Pedido enviado correctamente",
-        "download": "📄 Descargar resumen en PDF",
-    }
 
 
 @st.cache_data
@@ -373,137 +184,6 @@ def obtener_ruta_imagen_subfamilia_quimicos(subfamilia):
             return ruta
     return None
 
-def buscar_imagen_por_bases(bases, extensiones=(".png", ".jpg", ".jpeg", ".webp", ".gif")):
-    if isinstance(bases, str):
-        bases = [bases]
-    carpetas = []
-    for carpeta in CARPETAS_IMAGENES_CANDIDATAS:
-        if carpeta not in carpetas:
-            carpetas.append(carpeta)
-    if CARPETA_IMAGENES not in carpetas:
-        carpetas.insert(0, CARPETA_IMAGENES)
-
-    for carpeta in carpetas:
-        for base in bases:
-            base = str(base)
-            if Path(base).suffix:
-                ruta_directa = carpeta / base
-                if ruta_directa.exists():
-                    return ruta_directa
-            for ext in extensiones:
-                ruta = carpeta / f"{base}{ext}"
-                if ruta.exists():
-                    return ruta
-    return None
-
-
-def obtener_ruta_imagen_producto(codigo):
-    return buscar_imagen_por_bases(str(codigo).strip())
-
-
-def obtener_ruta_imagen_familia(nombre_familia):
-    info = FAMILIAS.get(nombre_familia, {})
-    fam_id = info.get("id")
-    if fam_id is None:
-        return None
-    return buscar_imagen_por_bases(f"familia_{fam_id}")
-
-
-def _obtener_ruta_desde_mapa(subfamilia, mapa):
-    base = mapa.get(str(subfamilia).strip())
-    if not base:
-        return None
-    return buscar_imagen_por_bases(base)
-
-
-def obtener_ruta_imagen_subfamilia_quimicos(subfamilia):
-    mapa = {
-        "Lavavajillas": "sub_quimicos_lavavajillas",
-        "Desengrasantes": "sub_quimicos_desengrasantes",
-        "Suelos y superficies": "sub_quimicos_suelos_superficies",
-        "Baños y sanitarios": "sub_quimicos_banos_sanitarios",
-        "Desinfección": "sub_quimicos_desinfeccion",
-        "Lavandería": "sub_quimicos_lavanderia",
-        "Ambientadores": "sub_quimicos_ambientadores",
-        "Aseo personal": "sub_quimicos_aseo_personal",
-    }
-    return _obtener_ruta_desde_mapa(subfamilia, mapa)
-
-
-def obtener_ruta_imagen_subfamilia_celulosas(subfamilia):
-    mapa = {
-        "Servilletas": "sub_celulosas_servilletas",
-        "Manteles y mantelines": "sub_celulosas_manteles_mantelines",
-        "Toallas": "sub_celulosas_toallas",
-        "Papel higiénico industrial / jumbo": "sub_celulosas_papel_higienico_industrial_jumbo",
-        "Bobinas y papel mecha": "sub_celulosas_bobinas_papel_mecha",
-        "Papel higiénico doméstico": "sub_celulosas_papel_higienico_domestico",
-        "Papel camilla y sanitario": "sub_celulosas_papel_camilla_sanitario",
-        "Pañuelos y toallitas": "sub_celulosas_panuelos_toallitas",
-    }
-    return _obtener_ruta_desde_mapa(subfamilia, mapa)
-
-
-def obtener_ruta_imagen_subfamilia_utiles(subfamilia):
-    mapa = {
-        "Bayetas, paños y estropajos": "sub_utiles_bayetas_panos_estropajos",
-        "Mopas, fregonas y recambios": "sub_utiles_mopas_fregonas_recambios",
-        "Escobas, cepillos y recogedores": "sub_utiles_escobas_cepillos_recogedores",
-        "Limpiacristales y útiles de cristalería": "sub_utiles_limpiacristales_utiles_cristaleria",
-        "Cubos, carros y escurridores": "sub_utiles_cubos_carros_escurridores",
-        "Pulverizadores, dosificación y señalización": "sub_utiles_pulverizadores_dosificacion_senalizacion",
-        "Guantes y protección": "sub_utiles_guantes_proteccion",
-        "Otros útiles y accesorios": "sub_utiles_otros_utiles_accesorios",
-    }
-    return _obtener_ruta_desde_mapa(subfamilia, mapa)
-
-
-def obtener_ruta_imagen_subfamilia_desechables(subfamilia):
-    mapa = {
-        "Bolsas de basura y sacos": "sub_desechables_bolsas_basura_sacos",
-        "Bolsas alimentarias y uso especial": "sub_desechables_bolsas_alimentarias_uso_especial",
-        "Guantes desechables": "sub_desechables_guantes_desechables",
-        "Vestuario y protección desechable": "sub_desechables_vestuario_proteccion_desechable",
-        "Vajilla desechable y reutilizable": "sub_desechables_vajilla_desechable_reutilizable",
-        "Envases, tapas y tarrinas": "sub_desechables_envases_tapas_tarrinas",
-        "Films, aluminio y precintos": "sub_desechables_films_aluminio_precintos",
-        "Higiene y consumibles desechables": "sub_desechables_higiene_consumibles_desechables",
-    }
-    return _obtener_ruta_desde_mapa(subfamilia, mapa)
-
-
-def obtener_ruta_imagen_subfamilia_equipamiento(subfamilia):
-    mapa = {
-        "Dispensadores de jabón y gel": "sub_equipamiento_dispensadores_jabon_gel",
-        "Dispensadores de papel higiénico": "sub_equipamiento_dispensadores_papel_higienico",
-        "Dispensadores de toallas, mecha y servilletas": "sub_equipamiento_dispensadores_toallas_mecha_servilletas",
-        "Dosificación y dilución química": "sub_equipamiento_dosificacion_dilucion_quimica",
-        "Ambientación y urinarios": "sub_equipamiento_ambientacion_urinarios",
-        "Accesorios de baño y sala": "sub_equipamiento_accesorios_bano_sala",
-        "Carros, soportes y mobiliario auxiliar": "sub_equipamiento_carros_soportes_mobiliario_auxiliar",
-        "Otros equipamientos": "sub_equipamiento_otros_equipamientos",
-    }
-    return _obtener_ruta_desde_mapa(subfamilia, mapa)
-
-
-def obtener_ruta_imagen_subfamilia_maquinas(subfamilia):
-    mapa = {
-        "Máquinas de limpieza de suelos": "sub_maquinas_limpieza_suelos",
-        "Lavado industrial, cocina y lavandería": "sub_maquinas_lavado_industrial_cocina_lavanderia",
-        "Dosificación, dilución y laboratorio": "sub_maquinas_dosificacion_dilucion_laboratorio",
-        "Repuestos, accesorios y SAT": "sub_maquinas_repuestos_accesorios_sat",
-    }
-    return _obtener_ruta_desde_mapa(subfamilia, mapa)
-
-
-def obtener_ruta_imagen_subfamilia_otros(_subfamilia):
-    return obtener_ruta_imagen_familia("Otros")
-
-
-def obtener_ruta_imagen_subfamilia_servicios(_subfamilia):
-    return obtener_ruta_imagen_familia("Servicios")
-
-
 def _mtime_seguro(ruta):
     try:
         return Path(ruta).stat().st_mtime
@@ -568,15 +248,14 @@ def restaurar_carrito_desde_qp(valor):
 
 
 def sync_query_params():
-    guardar_carrito_servidor(st.session_state.get("carrito_sid"), st.session_state.carrito)
     params = {"pantalla": st.session_state.pantalla_actual}
-    sid = st.session_state.get("carrito_sid", "")
-    if sid:
-        params["sid"] = sid
     if st.session_state.familia_actual:
         params["familia"] = st.session_state.familia_actual
     if st.session_state.subfamilia_actual:
         params["subfamilia"] = st.session_state.subfamilia_actual
+    cart = serializar_carrito_para_qp()
+    if cart:
+        params["cart"] = cart
     st.query_params.clear()
     st.query_params.update(params)
 
@@ -584,13 +263,13 @@ def sync_query_params():
 def qp_url(pantalla=None, familia=None, subfamilia=None):
     pantalla = pantalla or st.session_state.pantalla_actual or "catalogo"
     parts = [f"pantalla={quote(str(pantalla), safe='')}"]
-    sid = st.session_state.get("carrito_sid", "")
-    if sid:
-        parts.append(f"sid={quote(str(sid), safe='')}")
     if familia:
         parts.append(f"familia={quote(str(familia), safe='')}")
     if subfamilia:
         parts.append(f"subfamilia={quote(str(subfamilia), safe='')}")
+    cart = serializar_carrito_para_qp()
+    if cart:
+        parts.append(f"cart={cart}")
     return "?" + "&".join(parts)
 
 
@@ -791,26 +470,19 @@ def render_menu_superior():
             margin:0 auto;
             color:#3e5140;
         }
-        .hero-info-box {
-            max-width: 760px;
-            margin: 1.3rem auto 0 auto;
-            background: rgba(255,255,255,.88);
-            border: 1px solid #dfeedd;
-            border-radius: 20px;
-            padding: 1rem 1.1rem;
-            text-align: left;
-            box-shadow: 0 8px 18px rgba(0,0,0,.04);
+        .hero-mini-grid {
+            display:grid;
+            grid-template-columns: repeat(3, minmax(0,1fr));
+            gap:.8rem;
+            margin-top:1.4rem;
         }
-        .hero-info-box ul {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-        .hero-info-box li {
-            color:#355e2b;
+        .hero-mini-card {
+            background: rgba(255,255,255,.78);
+            border:1px solid #dfeedd;
+            border-radius:18px;
+            padding:.9rem;
             font-weight:600;
-            padding: .28rem 0;
-            line-height:1.35;
+            color:#355e2b;
         }
         .contact-card {
             background: linear-gradient(135deg, #f8fbf8 0%, #eef7eb 100%);
@@ -819,38 +491,20 @@ def render_menu_superior():
             padding:1.25rem;
             box-shadow: 0 8px 20px rgba(0,0,0,.05);
         }
-        .cta-band {
-            background:#355e2b;
-            color:white;
-            border-radius:22px;
-            padding:1.2rem 1.2rem;
-            box-shadow: 0 12px 26px rgba(53,94,43,.22);
-        }
-        .cta-band p, .cta-band h3 {color:white; margin:0;}
-        .topbar-btn button {height: 48px; font-weight: 700;}
         @media (max-width: 900px) {
-            .hero-info-box {padding: .95rem 1rem;}
+            .hero-mini-grid {grid-template-columns: 1fr;}
         }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    c1, c2, c3 = st.columns([1.1, 3.8, 1.1])
-    with c1:
-        if st.button("🏠 Ir a inicio", use_container_width=True, key="top_inicio"):
-            ir_a_inicio()
-            st.rerun()
-    with c2:
-        st.markdown("", unsafe_allow_html=True)
-    with c3:
-        st.markdown("", unsafe_allow_html=True)
-
-    st.markdown("<div style='margin-top:0.3rem'></div>", unsafe_allow_html=True)
-
 
 def render_inicio():
     logo_src = obtener_logo_src()
+
+    render_aply(APLY_SALUDA, "Hola, soy Aply. Entra al catálogo y prepara tu pedido en pocos pasos.", altura=280)
+    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
 
     st.markdown(
         f"""
@@ -859,12 +513,10 @@ def render_inicio():
             <img src='{logo_src}' style='width: min(430px, 82%); margin-bottom: 1rem;' />
             <h1 class='hero-title'>Haz tu pedido online</h1>
             <p class='hero-subtitle'>Accede al catálogo de Aplytec de forma rápida y sencilla. Encuentra lo que necesitas, añádelo al carrito y envía tu pedido desde el móvil en pocos pasos.</p>
-            <div class='hero-info-box'>
-                <ul>
-                    <li>📦 Productos organizados por familias</li>
-                    <li>🛒 Compra rápida y clara</li>
-                    <li>💬 Atención directa por WhatsApp</li>
-                </ul>
+            <div class='hero-mini-grid'>
+                <div class='hero-mini-card'>📦 Productos organizados por familias</div>
+                <div class='hero-mini-card'>🛒 Compra rápida y clara</div>
+                <div class='hero-mini-card'>💬 Atención directa por WhatsApp</div>
             </div>
         </div>
         """,
@@ -872,72 +524,40 @@ def render_inicio():
     )
 
     st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
-    render_aply(APLY_SALUDA, 'Hola, soy Aply. Entra en el catálogo pulsando el botón "Ver productos" y prepara tu pedido en pocos pasos.', altura=280)
-
-    st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        if st.button("📦 Ver productos", use_container_width=True, key="inicio_productos"):
-            ir_a_catalogo()
-            st.rerun()
-    with c2:
-        if st.button(f"🛒 Mi carrito ({total_items_carrito()})", use_container_width=True, key="inicio_carrito"):
-            ir_a_carrito()
-            st.rerun()
-    with c3:
-        if st.button("📞 Contacto", use_container_width=True, key="inicio_contacto"):
-            ir_a_contacto()
-            st.rerun()
-
-    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
-    st.link_button("💬 Pedir por WhatsApp", WHATSAPP_LINK, use_container_width=True)
-
-    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
-    w1, w2 = st.columns([2, 1])
-    with w1:
-        st.markdown(
-            """
-            <div class='contact-card'>
-                <h3 style='margin-top:0;'>Pedido rápido desde tu móvil</h3>
-                <p style='margin-bottom:0.45rem;'>Explora las familias, añade productos al carrito y envía tu pedido de forma cómoda, clara y sin llamadas innecesarias.</p>
-                <p style='margin-bottom:0;'><strong>WhatsApp:</strong> +34 647 93 63 56</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with w2:
-        if st.button("📦 Entrar al catálogo", use_container_width=True, key="inicio_catalogo_extra"):
-            ir_a_catalogo()
-            st.rerun()
+    st.markdown(
+        """
+        <div class='contact-card'>
+            <h3 style='margin-top:0;'>Pedido rápido desde tu móvil</h3>
+            <p style='margin-bottom:0.45rem;'>Explora las familias, añade productos al carrito y envía tu pedido de forma cómoda, clara y sin llamadas innecesarias.</p>
+            <p style='margin-bottom:0;'><strong>WhatsApp:</strong> +34 647 93 63 56</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_contacto():
+    render_aply(APLY_MOVIL, "¿Tienes dudas? Escríbenos por WhatsApp y te ayudamos con el pedido.", altura=280)
+    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
     st.markdown("## Contacto")
-    c1, c2 = st.columns([1.7, 1])
-    with c1:
-        st.markdown(
-            """
-            <div class='contact-card'>
-                <h3 style='margin-top:0;'>Aplytec</h3>
-                <p><strong>WhatsApp:</strong> +34 647 93 63 56</p>
-                <p>Escríbenos si prefieres ayuda directa para preparar tu pedido.</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.link_button("💬 Hablar por WhatsApp", WHATSAPP_LINK, use_container_width=True)
-    with c2:
-        render_aply(APLY_MOVIL, "¿Tienes dudas? Escríbenos por WhatsApp y te ayudamos con el pedido.", altura=280)
-
+    st.markdown(
+        """
+        <div class='contact-card'>
+            <h3 style='margin-top:0;'>Aplytec</h3>
+            <p><strong>WhatsApp:</strong> +34 647 93 63 56</p>
+            <p>Escríbenos si prefieres ayuda directa para preparar tu pedido.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_carrito():
+    render_aply(APLY_CARRITO, "Revisa tu pedido y no olvides indicar tu nombre y tu teléfono.", altura=230)
+    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
     st.markdown("## 🛒 Mi carrito")
-    c1, c2 = st.columns([1.8, 1])
-    with c1:
-        st.markdown("Completa tu pedido o genera un presupuesto y envíalo cuando esté todo correcto.")
-    with c2:
-        render_aply(APLY_CARRITO, "Revisa tu pedido y no olvides indicar tu nombre y tu teléfono.", altura=230)
+    st.markdown("Completa tu pedido y envíalo cuando esté todo correcto.")
+    ruta_pdf = "resumen_pedido.pdf"
 
     if st.session_state.carrito:
         total = 0.0
@@ -986,8 +606,6 @@ def render_carrito():
 
         if nuevo_carrito != st.session_state.carrito or borrado:
             st.session_state.carrito = nuevo_carrito
-            st.session_state.next_cart_id = max([int(x.get("id", 0)) for x in st.session_state.carrito] + [0]) + 1
-            sync_query_params()
 
         st.markdown(f"### Total: {total:.2f} euros (IVA incluido)")
 
@@ -995,19 +613,12 @@ def render_carrito():
         with st.form("form_pedido"):
             nombre = st.text_input("Tu nombre", key="pedido_nombre")
             telefono = st.text_input("Teléfono", key="pedido_telefono")
-            tipo_salida = st.radio(
-                "Tipo de documento",
-                ["Pedido", "Presupuesto sin imágenes", "Presupuesto con imágenes"],
-                index=0,
-                key="tipo_documento_salida",
-            )
             comentarios = st.text_area(
                 "Observaciones",
                 key="pedido_observaciones",
                 placeholder="Si es tu primera compra añade tus datos para facturar (CIF/NIF, Nombre, Dirección)"
             )
-            config_doc = obtener_configuracion_documento(tipo_salida)
-            enviar = st.form_submit_button(config_doc["boton"])
+            enviar = st.form_submit_button("📨 Enviar pedido")
 
             if enviar:
                 nombre_limpio = nombre.strip()
@@ -1015,11 +626,11 @@ def render_carrito():
 
                 if not nombre_limpio or not telefono_limpio:
                     if not nombre_limpio and not telefono_limpio:
-                        aviso = f"Faltan nombre y teléfono para poder enviar el {config_doc['titulo'].lower()}."
+                        aviso = "Faltan nombre y teléfono para poder enviar el pedido."
                     elif not nombre_limpio:
-                        aviso = f"Falta el nombre para poder enviar el {config_doc['titulo'].lower()}."
+                        aviso = "Falta el nombre para poder enviar el pedido."
                     else:
-                        aviso = f"Falta el teléfono para poder enviar el {config_doc['titulo'].lower()}."
+                        aviso = "Falta el teléfono para poder enviar el pedido."
 
                     st.warning(aviso)
                     components.html(
@@ -1040,55 +651,31 @@ def render_carrito():
                         height=0,
                     )
                 else:
-                    ruta_pdf = config_doc["archivo"]
                     resumen_txt = (
-                        f"{config_doc['titulo']} enviado por: {nombre_limpio}\n"
-                        f"Telefono: {telefono_limpio}\n"
-                        f"Modalidad: {tipo_salida}\n\n{resumen}\n"
+                        f"Pedido enviado por: {nombre_limpio}\n"
+                        f"Telefono: {telefono_limpio}\n\n{resumen}\n"
                         f"Total: {total:.2f} euros (IVA incluido)\n\nComentarios: {comentarios}"
                     )
-                    generar_pdf(
-                        nombre_limpio,
-                        resumen,
-                        total,
-                        comentarios,
-                        ruta_pdf,
-                        tipo_documento=config_doc["tipo_documento"],
-                        incluir_imagenes=config_doc["incluir_imagenes"],
-                        carrito=st.session_state.carrito,
-                        telefono=telefono_limpio,
-                    )
-                    enviar_documento_por_email(
-                        config_doc["asunto"],
-                        resumen_txt,
-                        ruta_pdf,
-                        nombre_adjunto=config_doc["archivo"],
-                    )
-                    st.success(config_doc["success"])
+                    generar_pdf(nombre_limpio, resumen, total, comentarios, ruta_pdf)
+                    enviar_pedido_por_email("Nuevo pedido de catálogo", resumen_txt, ruta_pdf)
+                    st.success("✅ Pedido enviado correctamente")
                     st.session_state.pdf_generado = True
-                    st.session_state.ultimo_pdf_path = ruta_pdf
-                    st.session_state.ultimo_pdf_nombre = config_doc["archivo"]
-                    st.session_state.ultimo_pdf_boton = config_doc["download"]
                     st.session_state.carrito = []
-                    st.session_state.next_cart_id = 1
-                    sync_query_params()
 
         b1, b2, b3 = st.columns(3)
         with b1:
-            if st.session_state.pdf_generado and st.session_state.get("ultimo_pdf_path") and Path(st.session_state["ultimo_pdf_path"]).exists():
-                with open(st.session_state["ultimo_pdf_path"], "rb") as f:
+            if st.session_state.pdf_generado and Path(ruta_pdf).exists():
+                with open(ruta_pdf, "rb") as f:
                     st.download_button(
-                        st.session_state.get("ultimo_pdf_boton", "📄 Descargar PDF"),
+                        "📄 Descargar resumen en PDF",
                         f,
-                        file_name=st.session_state.get("ultimo_pdf_nombre", "documento.pdf"),
+                        file_name="resumen_pedido.pdf",
                         use_container_width=True,
                     )
         with b2:
             if st.button("🗑️ Vaciar carrito", use_container_width=True):
                 st.session_state.carrito = []
-                st.session_state.next_cart_id = 1
                 st.session_state.pdf_generado = False
-                sync_query_params()
                 st.warning("Carrito vaciado")
                 st.rerun()
         with b3:
@@ -1181,103 +768,94 @@ def render_rejilla_subfamilias_quimicos():
     render_rejilla_component(items)
 
 
-def render_rejilla_subfamilias_celulosas():
-    items = []
-    for subfamilia, _archivo in CELULOSAS_SUBFAMILIAS_ORDENADAS:
-        img = obtener_ruta_imagen_subfamilia_celulosas(subfamilia)
-        items.append({
-            "href": qp_url(pantalla="catalogo", familia="Celulosas", subfamilia=subfamilia),
-            "alt": subfamilia,
-            "img": imagen_data_uri(img) if img and img.exists() else None,
-            "fallback": subfamilia,
-        })
-    render_rejilla_component(items)
-
-
-def render_rejilla_subfamilias_utiles():
-    items = []
-    for subfamilia, _archivo in UTILES_SUBFAMILIAS_ORDENADAS:
-        img = obtener_ruta_imagen_subfamilia_utiles(subfamilia)
-        items.append({
-            "href": qp_url(pantalla="catalogo", familia="Útiles", subfamilia=subfamilia),
-            "alt": subfamilia,
-            "img": imagen_data_uri(img) if img and img.exists() else None,
-            "fallback": subfamilia,
-        })
-    render_rejilla_component(items)
-
-
-def render_rejilla_subfamilias_desechables():
-    items = []
-    for subfamilia, _archivo in DESECHABLES_SUBFAMILIAS_ORDENADAS:
-        img = obtener_ruta_imagen_subfamilia_desechables(subfamilia)
-        items.append({
-            "href": qp_url(pantalla="catalogo", familia="Desechables", subfamilia=subfamilia),
-            "alt": subfamilia,
-            "img": imagen_data_uri(img) if img and img.exists() else None,
-            "fallback": subfamilia,
-        })
-    render_rejilla_component(items)
-
-
-def render_rejilla_subfamilias_equipamiento():
-    items = []
-    for subfamilia, _archivo in EQUIPAMIENTO_SUBFAMILIAS_ORDENADAS:
-        img = obtener_ruta_imagen_subfamilia_equipamiento(subfamilia)
-        items.append({
-            "href": qp_url(pantalla="catalogo", familia="Equipamiento", subfamilia=subfamilia),
-            "alt": subfamilia,
-            "img": imagen_data_uri(img) if img and img.exists() else None,
-            "fallback": subfamilia,
-        })
-    render_rejilla_component(items)
-
-
-def render_rejilla_subfamilias_maquinas():
-    items = []
-    for subfamilia, _archivo in MAQUINAS_SUBFAMILIAS_ORDENADAS:
-        img = obtener_ruta_imagen_subfamilia_maquinas(subfamilia)
-        items.append({
-            "href": qp_url(pantalla="catalogo", familia="Máquinas", subfamilia=subfamilia),
-            "alt": subfamilia,
-            "img": imagen_data_uri(img) if img and img.exists() else None,
-            "fallback": subfamilia,
-        })
-    render_rejilla_component(items)
-
-
-def render_rejilla_subfamilias_otros():
-    items = []
-    for subfamilia, _archivo in OTROS_SUBFAMILIAS_ORDENADAS:
-        img = obtener_ruta_imagen_subfamilia_otros(subfamilia)
-        items.append({
-            "href": qp_url(pantalla="catalogo", familia="Otros", subfamilia=subfamilia),
-            "alt": subfamilia,
-            "img": imagen_data_uri(img) if img and img.exists() else None,
-            "fallback": subfamilia,
-        })
-    render_rejilla_component(items)
-
-
-def render_rejilla_subfamilias_servicios():
-    items = []
-    for subfamilia, _archivo in SERVICIOS_SUBFAMILIAS_ORDENADAS:
-        img = obtener_ruta_imagen_subfamilia_servicios(subfamilia)
-        items.append({
-            "href": qp_url(pantalla="catalogo", familia="Servicios", subfamilia=subfamilia),
-            "alt": subfamilia,
-            "img": imagen_data_uri(img) if img and img.exists() else None,
-            "fallback": subfamilia,
-        })
-    render_rejilla_component(items)
-
-
 def construir_mapa_cantidades_carrito():
     cantidades = {}
     for item in st.session_state.carrito:
         clave = (str(item["Código"]), str(item["Tipo"]))
         cantidades[clave] = cantidades.get(clave, 0) + int(item["Cantidad"])
     return cantidades
+
+def render_producto_compacto(fila, prefijo, mostrar_ubicacion=False):
+    codigo = str(fila["Código"])
+    nombre = str(fila["Nombre"])
+    precio_con_iva = float(fila["Precio"])
+
+    st.markdown(
+        """
+        <style>
+        .producto-card-title {
+            font-size:1.05rem;
+            font-weight:800;
+            line-height:1.2;
+            margin:.15rem 0 .25rem 0;
+            color:#263526;
+        }
+        .producto-precio {
+            font-size:1.25rem;
+            font-weight:900;
+            color:#355e2b;
+            margin:.05rem 0 .2rem 0;
+        }
+        .producto-meta {
+            font-size:.78rem;
+            color:#6a746a;
+            margin-bottom:.25rem;
+        }
+        .producto-en-carrito {
+            text-align:center;
+            font-size:.9rem;
+            font-weight:800;
+            color:#355e2b;
+            padding:.35rem .1rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    with st.container(border=True):
+        ruta_img = obtener_ruta_imagen_producto(codigo)
+        if ruta_img:
+            img64 = imagen_a_base64(ruta_img)
+            st.markdown(
+                f'<div style="text-align:center;height:130px;overflow:hidden;display:flex;align-items:center;justify-content:center;">'
+                f'<img src="data:image/png;base64,{img64}" style="max-height:125px;max-width:100%;object-fit:contain;">'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown(f'<div class="producto-card-title">{nombre}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="producto-precio">{precio_con_iva:.2f} € <span style="font-size:.72rem;font-weight:600;color:#6a746a;">IVA incluido</span></div>', unsafe_allow_html=True)
+
+        meta = f"Código: {codigo}"
+        if mostrar_ubicacion:
+            meta += f" · {fila['Familia']} · {fila['Subfamilia']}"
+        st.markdown(f'<div class="producto-meta">{meta}</div>', unsafe_allow_html=True)
+
+        tipo = st.radio(
+            "Formato",
+            FORMATOS,
+            horizontal=True,
+            key=f"tipo_{prefijo}_{codigo}",
+            label_visibility="collapsed",
+        )
+
+        qty_actual = cantidad_en_carrito(codigo, tipo)
+        b1, b2, b3, b4 = st.columns([1, 1, 1, 1.2], gap="small")
+        with b1:
+            if st.button("−1", key=f"menos_{prefijo}_{codigo}_{tipo}", use_container_width=True):
+                quitar_del_carrito(codigo, tipo, 1)
+                st.rerun()
+        with b2:
+            st.markdown(f'<div class="producto-en-carrito">{qty_actual}</div>', unsafe_allow_html=True)
+        with b3:
+            if st.button("+1", key=f"mas_{prefijo}_{codigo}_{tipo}", use_container_width=True, type="primary"):
+                agregar_o_sumar_al_carrito(codigo, nombre, tipo, precio_con_iva, 1)
+                st.rerun()
+        with b4:
+            if st.button("+5", key=f"add5_{prefijo}_{codigo}_{tipo}", use_container_width=True):
+                agregar_o_sumar_al_carrito(codigo, nombre, tipo, precio_con_iva, 5)
+                st.rerun()
 
 def render_catalogo(df):
     busqueda_global = st.text_input("🔎 Buscar producto por nombre o código", key="busqueda_global_catalogo")
@@ -1292,54 +870,11 @@ def render_catalogo(df):
         cantidades_carrito = construir_mapa_cantidades_carrito()
 
         for _, fila in resultados.iterrows():
-            st.markdown("---")
-            c1, c2 = st.columns([1, 2])
-
-            with c1:
-                ruta_img = obtener_ruta_imagen_producto(fila["Código"])
-                if ruta_img:
-                    st.image(ruta_img, use_container_width=True)
-                else:
-                    st.info("Sin imagen")
-
-            with c2:
-                st.markdown(f"### {fila['Nombre']}")
-                precio_con_iva = float(fila["Precio"])
-                precio_sin_iva = precio_con_iva / (1 + IVA) if precio_con_iva else 0
-                st.markdown(
-                    f"**Código:** {fila['Código']}  \n"
-                    f"**Familia:** {fila['Familia']}  \n"
-                    f"**Subfamilia:** {fila['Subfamilia']}  \n"
-                    f"💶 **Precio sin IVA:** {precio_sin_iva:.2f} €  \n"
-                    f"💰 **Precio con IVA:** {precio_con_iva:.2f} €"
-                )
-
-                tipo = st.radio(
-                    "Formato",
-                    FORMATOS,
-                    horizontal=True,
-                    key=f"tipo_busq_{fila['Código']}",
-                    label_visibility="collapsed",
-                )
-
-                qty_actual = cantidades_carrito.get((str(fila["Código"]), str(tipo)), 0)
-                a1, a2, a3, a4 = st.columns([1, 1, 1.3, 1.5])
-                with a1:
-                    if st.button("-1", key=f"menos_busq_{fila['Código']}_{tipo}", use_container_width=True):
-                        quitar_del_carrito(fila["Código"], tipo, 1)
-                        st.rerun()
-                with a2:
-                    if st.button("+1", key=f"mas_busq_{fila['Código']}_{tipo}", use_container_width=True):
-                        agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
-                        st.rerun()
-                with a3:
-                    st.markdown(f"**En carrito:** {qty_actual}")
-                with a4:
-                    if st.button("Añadir 5", key=f"add5_busq_{fila['Código']}_{tipo}", use_container_width=True):
-                        agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
-                        st.rerun()
+            render_producto_compacto(fila, "busq", mostrar_ubicacion=True)
 
     if st.session_state.familia_actual is None:
+        render_aply(APLY_SENALA, "Elige una familia para ver los productos.", altura=190)
+        st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
         st.markdown("## Familias")
         st.caption("Toca una familia para ver los productos")
         render_rejilla_familias()
@@ -1375,84 +910,12 @@ def render_catalogo(df):
                 cantidades_carrito = construir_mapa_cantidades_carrito()
 
                 for _, fila in productos_familia.iterrows():
-                    st.markdown("---")
-                    c1, c2 = st.columns([1, 2])
-
-                    with c1:
-                        ruta_img = obtener_ruta_imagen_producto(fila["Código"])
-                        if ruta_img:
-                            st.image(ruta_img, use_container_width=True)
-                        else:
-                            st.info("Sin imagen")
-
-                    with c2:
-                        st.markdown(f"### {fila['Nombre']}")
-                        precio_con_iva = float(fila["Precio"])
-                        precio_sin_iva = precio_con_iva / (1 + IVA) if precio_con_iva else 0
-                        st.markdown(
-                            f"**Código:** {fila['Código']}  \n"
-                            f"**Subfamilia:** {fila['Subfamilia']}  \n"
-                            f"💶 **Precio sin IVA:** {precio_sin_iva:.2f} €  \n"
-                            f"💰 **Precio con IVA:** {precio_con_iva:.2f} €"
-                        )
-
-                        tipo = st.radio(
-                            "Formato",
-                            FORMATOS,
-                            horizontal=True,
-                            key=f"tipo_fam_{fila['Código']}",
-                            label_visibility="collapsed",
-                        )
-
-                        qty_actual = cantidades_carrito.get((str(fila["Código"]), str(tipo)), 0)
-                        a1, a2, a3, a4 = st.columns([1, 1, 1.3, 1.5])
-                        with a1:
-                            if st.button("-1", key=f"menos_fam_{fila['Código']}_{tipo}", use_container_width=True):
-                                quitar_del_carrito(fila["Código"], tipo, 1)
-                                st.rerun()
-                        with a2:
-                            if st.button("+1", key=f"mas_fam_{fila['Código']}_{tipo}", use_container_width=True):
-                                agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
-                                st.rerun()
-                        with a3:
-                            st.markdown(f"**En carrito:** {qty_actual}")
-                        with a4:
-                            if st.button("Añadir 5", key=f"add5_fam_{fila['Código']}_{tipo}", use_container_width=True):
-                                agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
-                                st.rerun()
+                    render_producto_compacto(fila, "fam", mostrar_ubicacion=False)
 
             render_aply(APLY_SENALA, "Elige una subfamilia para ver los productos.", altura=190)
             if familia_actual == "Químicos":
                 st.markdown("### Selecciona una subfamilia")
                 render_rejilla_subfamilias_quimicos()
-                return
-            if familia_actual == "Celulosas":
-                st.markdown("### Selecciona una subfamilia")
-                render_rejilla_subfamilias_celulosas()
-                return
-            if familia_actual == "Útiles":
-                st.markdown("### Selecciona una subfamilia")
-                render_rejilla_subfamilias_utiles()
-                return
-            if familia_actual == "Desechables":
-                st.markdown("### Selecciona una subfamilia")
-                render_rejilla_subfamilias_desechables()
-                return
-            if familia_actual == "Equipamiento":
-                st.markdown("### Selecciona una subfamilia")
-                render_rejilla_subfamilias_equipamiento()
-                return
-            if familia_actual == "Máquinas":
-                st.markdown("### Selecciona una subfamilia")
-                render_rejilla_subfamilias_maquinas()
-                return
-            if familia_actual == "Otros":
-                st.markdown("### Selecciona una subfamilia")
-                render_rejilla_subfamilias_otros()
-                return
-            if familia_actual == "Servicios":
-                st.markdown("### Selecciona una subfamilia")
-                render_rejilla_subfamilias_servicios()
                 return
             subfamilias = (
                 df[df["Familia"] == familia_actual]["Subfamilia"]
@@ -1502,92 +965,10 @@ def render_catalogo(df):
 
     render_aply(APLY_SENALA, "Pulsa +1 o Añadir 5 para meter productos en tu pedido.", altura=190)
 
-    st.markdown(
-        """
-        <style>
-        .aply-producto-compacto {
-            border:1px solid #e6efe2;
-            border-radius:18px;
-            padding:.7rem .75rem;
-            margin:.45rem 0;
-            background:#ffffff;
-            box-shadow:0 5px 14px rgba(0,0,0,.04);
-        }
-        .aply-producto-compacto .nombre {
-            font-weight:700;
-            color:#1f2a1f;
-            line-height:1.2;
-            margin-bottom:.2rem;
-            font-size:1rem;
-        }
-        .aply-producto-compacto .meta {
-            color:#4e5f50;
-            font-size:.92rem;
-            line-height:1.35;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
     cantidades_carrito = construir_mapa_cantidades_carrito()
 
     for _, fila in productos.iterrows():
-        precio_con_iva = float(fila["Precio"])
-        precio_sin_iva = precio_con_iva / (1 + IVA) if precio_con_iva else 0
-        ruta_img = obtener_ruta_imagen_producto(fila["Código"])
-
-        st.markdown('<div class="aply-producto-compacto">', unsafe_allow_html=True)
-        c1, c2 = st.columns([0.9, 3.2])
-
-        with c1:
-            if ruta_img:
-                st.image(ruta_img, width=95)
-            else:
-                st.markdown(
-                    """
-                    <div style="width:95px;height:95px;border-radius:14px;background:linear-gradient(135deg,#f8fbf8,#eef7eb);display:flex;align-items:center;justify-content:center;font-size:2rem;border:1px solid #e6efe2;">📦</div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-        with c2:
-            st.markdown(
-                f"""
-                <div class="nombre">{fila['Nombre']}</div>
-                <div class="meta">
-                    Código: {fila['Código']}<br>
-                    Sin IVA: {precio_sin_iva:.2f} € · Con IVA: {precio_con_iva:.2f} €
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            s1, s2, s3, s4 = st.columns([1.35, 0.9, 0.9, 1.15])
-            with s1:
-                tipo = st.selectbox(
-                    "Formato",
-                    FORMATOS,
-                    key=f"tipo_{fila['Código']}",
-                    label_visibility="collapsed",
-                )
-            qty_actual = cantidades_carrito.get((str(fila["Código"]), str(tipo)), 0)
-            with s2:
-                if st.button("-1", key=f"menos_{fila['Código']}_{tipo}", use_container_width=True):
-                    quitar_del_carrito(fila["Código"], tipo, 1)
-                    st.rerun()
-            with s3:
-                if st.button("+1", key=f"mas_{fila['Código']}_{tipo}", use_container_width=True):
-                    agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 1)
-                    st.rerun()
-            with s4:
-                if st.button("Añadir 5", key=f"add5_{fila['Código']}_{tipo}", use_container_width=True):
-                    agregar_o_sumar_al_carrito(fila["Código"], fila["Nombre"], tipo, precio_con_iva, 5)
-                    st.rerun()
-
-            st.caption(f"En carrito: {qty_actual} {tipo}")
-
-        st.markdown('</div>', unsafe_allow_html=True)
+        render_producto_compacto(fila, "sub", mostrar_ubicacion=False)
 
 
 if "carrito" not in st.session_state:
@@ -1602,38 +983,14 @@ if "pdf_generado" not in st.session_state:
     st.session_state.pdf_generado = False
 if "pantalla_actual" not in st.session_state:
     st.session_state.pantalla_actual = "inicio"
-if "carrito_sid" not in st.session_state:
-    st.session_state.carrito_sid = ""
-if "ultimo_pdf_path" not in st.session_state:
-    st.session_state.ultimo_pdf_path = ""
-if "ultimo_pdf_nombre" not in st.session_state:
-    st.session_state.ultimo_pdf_nombre = ""
-if "ultimo_pdf_boton" not in st.session_state:
-    st.session_state.ultimo_pdf_boton = "📄 Descargar PDF"
 
 qp = st.query_params
 cart_qp = qp.get("cart")
-sid_qp = qp.get("sid")
-
-if sid_qp:
-    st.session_state.carrito_sid = str(sid_qp)
-elif not st.session_state.carrito_sid:
-    st.session_state.carrito_sid = generar_sid_carrito()
-
-carrito_cargado = False
-carrito_srv = cargar_carrito_servidor(st.session_state.carrito_sid)
-if carrito_srv:
-    st.session_state.carrito = carrito_srv
-    st.session_state.next_cart_id = max([int(x.get("id", 0)) for x in carrito_srv] + [0]) + 1
-    carrito_cargado = True
-
-# Compatibilidad con URLs antiguas que todavía lleven cart=...
-if (not carrito_cargado) and cart_qp:
+if cart_qp:
     carrito_qp = restaurar_carrito_desde_qp(cart_qp)
     if carrito_qp:
         st.session_state.carrito = carrito_qp
         st.session_state.next_cart_id = max([int(x.get("id", 0)) for x in carrito_qp] + [0]) + 1
-        guardar_carrito_servidor(st.session_state.carrito_sid, st.session_state.carrito)
 if qp.get("familia"):
     st.session_state.familia_actual = qp.get("familia")
     st.session_state.pantalla_actual = "catalogo"
