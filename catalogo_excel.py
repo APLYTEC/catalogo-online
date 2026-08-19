@@ -554,62 +554,162 @@ def render_contacto():
 
 def render_carrito():
     render_aply(APLY_CARRITO, "Revisa tu pedido y no olvides indicar tu nombre y tu teléfono.", altura=230)
-    st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 0.45rem;'></div>", unsafe_allow_html=True)
     st.markdown("## 🛒 Mi carrito")
-    st.markdown("Completa tu pedido y envíalo cuando esté todo correcto.")
     ruta_pdf = "resumen_pedido.pdf"
 
+    st.markdown(
+        """
+        <style>
+        .cart-resumen-sticky {
+            position: sticky;
+            top: 3.9rem;
+            z-index: 50;
+            background: rgba(255,255,255,.97);
+            border: 1px solid #dfead9;
+            border-radius: 16px;
+            padding: .72rem .9rem;
+            margin: .45rem 0 .85rem 0;
+            box-shadow: 0 5px 16px rgba(0,0,0,.07);
+            backdrop-filter: blur(6px);
+        }
+        .cart-resumen-sticky .cart-total {
+            font-size: 1.18rem;
+            font-weight: 800;
+            line-height: 1.15;
+        }
+        .cart-resumen-sticky .cart-items {
+            font-size: .86rem;
+            opacity: .72;
+            margin-top: .12rem;
+        }
+        .cart-linea {
+            border: 1px solid #e6eee2;
+            border-radius: 18px;
+            padding: .78rem .85rem .45rem .85rem;
+            margin: 0 0 .72rem 0;
+            background: #fff;
+            box-shadow: 0 4px 13px rgba(0,0,0,.045);
+        }
+        .cart-linea-nombre {
+            font-size: 1rem;
+            font-weight: 750;
+            line-height: 1.22;
+            margin-bottom: .2rem;
+        }
+        .cart-linea-meta {
+            font-size: .79rem;
+            opacity: .68;
+            margin-bottom: .25rem;
+        }
+        .cart-linea-subtotal {
+            font-size: 1.02rem;
+            font-weight: 750;
+            margin: .25rem 0 .45rem 0;
+        }
+        .cart-cantidad {
+            text-align:center;
+            font-size:1.05rem;
+            font-weight:800;
+            padding-top:.42rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     if st.session_state.carrito:
-        total = 0.0
+        # El total mostrado en la cabecera se calcula siempre a partir del estado actual.
+        total_cabecera = total_importe_carrito()
+        items_cabecera = total_items_carrito()
+        st.markdown(
+            f"""
+            <div class='cart-resumen-sticky'>
+                <div class='cart-total'>Total: {total_cabecera:.2f} €</div>
+                <div class='cart-items'>{items_cabecera} artículo{'s' if items_cabecera != 1 else ''} · IVA incluido</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
         resumen = ""
-        nuevo_carrito = []
-        borrado = False
 
-        for item in st.session_state.carrito:
-            s1, s2, s3, s4, s5 = st.columns([3, 1, 1, 1.2, 0.8])
+        # Recorremos una copia para poder modificar/eliminar con seguridad.
+        for item in list(st.session_state.carrito):
+            item_id = item['id']
+            cantidad = int(item['Cantidad'])
+            precio_unitario = float(item['PrecioUnitario'])
+            subtotal = cantidad * precio_unitario
 
-            with s1:
-                st.markdown(f"**{item['Nombre']}**  \nCódigo: {item['Código']}")
-            with s2:
-                nueva_cantidad = st.number_input(
-                    f"Cantidad carrito {item['id']}",
-                    min_value=1,
-                    max_value=1000,
-                    value=int(item["Cantidad"]),
-                    key=f"cart_qty_{item['id']}",
-                    label_visibility="collapsed",
-                )
-            with s3:
-                nuevo_tipo = st.selectbox(
-                    f"Formato carrito {item['id']}",
-                    FORMATOS,
-                    index=FORMATOS.index(item["Tipo"]) if item["Tipo"] in FORMATOS else 0,
-                    key=f"cart_tipo_{item['id']}",
-                    label_visibility="collapsed",
-                )
-            with s4:
-                subtotal = float(nueva_cantidad) * float(item["PrecioUnitario"])
-                st.write(f"{subtotal:.2f} €")
-            with s5:
-                borrar = st.button("❌", key=f"delete_{item['id']}", use_container_width=True)
+            st.markdown("<div class='cart-linea'>", unsafe_allow_html=True)
+            st.markdown(f"<div class='cart-linea-nombre'>{item['Nombre']}</div>", unsafe_allow_html=True)
+            st.markdown(
+                f"<div class='cart-linea-meta'>Código: {item['Código']} · {precio_unitario:.2f} €/ud.</div>",
+                unsafe_allow_html=True,
+            )
+            st.markdown(f"<div class='cart-linea-subtotal'>Subtotal: {subtotal:.2f} €</div>", unsafe_allow_html=True)
 
-            if not borrar:
-                item["Cantidad"] = int(nueva_cantidad)
+            # Formato en una línea propia para que sea cómodo en móvil.
+            nuevo_tipo = st.selectbox(
+                "Formato",
+                FORMATOS,
+                index=FORMATOS.index(item["Tipo"]) if item["Tipo"] in FORMATOS else 0,
+                key=f"cart_tipo_{item_id}",
+            )
+            if nuevo_tipo != item["Tipo"]:
                 item["Tipo"] = nuevo_tipo
-                nuevo_carrito.append(item)
-                total += subtotal
-                resumen += f"- {item['Cantidad']} {item['Tipo']} de {item['Nombre']} (Codigo: {item['Código']}) -> {subtotal:.2f} euros\n"
-            else:
-                borrado = True
+                sync_query_params()
 
-            st.markdown("---")
+            c1, c2, c3, c4, c5 = st.columns([1, 1, 1, 1, 1])
+            with c1:
+                menos = st.button("−1", key=f"cart_minus_{item_id}", use_container_width=True)
+            with c2:
+                st.markdown(f"<div class='cart-cantidad'>{cantidad}</div>", unsafe_allow_html=True)
+            with c3:
+                mas = st.button("+1", key=f"cart_plus_{item_id}", use_container_width=True)
+            with c4:
+                mas5 = st.button("+5", key=f"cart_plus5_{item_id}", use_container_width=True)
+            with c5:
+                borrar = st.button("🗑️", key=f"delete_{item_id}", use_container_width=True)
 
-        if nuevo_carrito != st.session_state.carrito or borrado:
-            st.session_state.carrito = nuevo_carrito
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown(f"### Total: {total:.2f} euros (IVA incluido)")
+            if borrar:
+                st.session_state.carrito = [x for x in st.session_state.carrito if x['id'] != item_id]
+                sync_query_params()
+                st.rerun()
+            if menos:
+                if item["Cantidad"] <= 1:
+                    st.session_state.carrito = [x for x in st.session_state.carrito if x['id'] != item_id]
+                else:
+                    item["Cantidad"] -= 1
+                sync_query_params()
+                st.rerun()
+            if mas:
+                item["Cantidad"] += 1
+                sync_query_params()
+                st.rerun()
+            if mas5:
+                item["Cantidad"] += 5
+                sync_query_params()
+                st.rerun()
+
+        # Reconstruimos resumen y total después de posibles cambios de formato.
+        total = total_importe_carrito()
+        for item in st.session_state.carrito:
+            subtotal = float(item["Cantidad"]) * float(item["PrecioUnitario"])
+            resumen += f"- {item['Cantidad']} {item['Tipo']} de {item['Nombre']} (Codigo: {item['Código']}) -> {subtotal:.2f} euros\n"
+
+        st.markdown(f"### Total del pedido: {total:.2f} €")
+        st.caption("IVA incluido")
+
+        # Acción principal antes de los datos del cliente: volver al catálogo sin perder el carrito.
+        if st.button("➕ Seguir añadiendo productos", key="seguir_comprando_arriba", use_container_width=True):
+            ir_a_catalogo()
+            st.rerun()
 
         st.markdown("<div id='datos-pedido'></div>", unsafe_allow_html=True)
+        st.markdown("### Datos para enviar el pedido")
         with st.form("form_pedido"):
             nombre = st.text_input("Tu nombre", key="pedido_nombre")
             telefono = st.text_input("Teléfono", key="pedido_telefono")
@@ -618,7 +718,7 @@ def render_carrito():
                 key="pedido_observaciones",
                 placeholder="Si es tu primera compra añade tus datos para facturar (CIF/NIF, Nombre, Dirección)"
             )
-            enviar = st.form_submit_button("📨 Enviar pedido")
+            enviar = st.form_submit_button("📨 Enviar pedido", use_container_width=True)
 
             if enviar:
                 nombre_limpio = nombre.strip()
@@ -661,13 +761,14 @@ def render_carrito():
                     st.success("✅ Pedido enviado correctamente")
                     st.session_state.pdf_generado = True
                     st.session_state.carrito = []
+                    sync_query_params()
 
-        b1, b2, b3 = st.columns(3)
+        b1, b2 = st.columns(2)
         with b1:
             if st.session_state.pdf_generado and Path(ruta_pdf).exists():
                 with open(ruta_pdf, "rb") as f:
                     st.download_button(
-                        "📄 Descargar resumen en PDF",
+                        "📄 Descargar PDF",
                         f,
                         file_name="resumen_pedido.pdf",
                         use_container_width=True,
@@ -676,11 +777,7 @@ def render_carrito():
             if st.button("🗑️ Vaciar carrito", use_container_width=True):
                 st.session_state.carrito = []
                 st.session_state.pdf_generado = False
-                st.warning("Carrito vaciado")
-                st.rerun()
-        with b3:
-            if st.button("📦 Seguir comprando", use_container_width=True):
-                ir_a_catalogo()
+                sync_query_params()
                 st.rerun()
     else:
         st.info("No hay productos en el pedido.")
