@@ -12,6 +12,7 @@ import smtplib
 import ssl
 import base64
 import json
+import time
 import re
 import unicodedata
 from urllib.parse import quote, unquote
@@ -624,15 +625,25 @@ def leer_ultimo_pedido_navegador():
     if not LOCAL_STORAGE_DISPONIBLE:
         return None
     try:
+        # El componente puede tardar un render en devolver el dato. Si ya lo dejó
+        # en session_state, lo aprovechamos antes de volver a pedirlo.
+        valor_estado = st.session_state.get("aplytec_get_ultimo_pedido")
+        pedido_estado = _parsear_ultimo_pedido(valor_estado)
+        if pedido_estado:
+            return pedido_estado
+
         local_s = LocalStorage()
         valor = local_s.getItem(
             ULTIMO_PEDIDO_STORAGE_KEY,
             key="aplytec_get_ultimo_pedido",
         )
-        # Algunas versiones del componente dejan además el valor en session_state.
-        if valor is None:
-            valor = st.session_state.get("aplytec_get_ultimo_pedido")
-        return _parsear_ultimo_pedido(valor)
+        pedido = _parsear_ultimo_pedido(valor)
+        if pedido:
+            return pedido
+
+        # En algunas ejecuciones el valor se deposita en session_state durante
+        # el render del componente. Lo revisamos una segunda vez.
+        return _parsear_ultimo_pedido(st.session_state.get("aplytec_get_ultimo_pedido"))
     except Exception:
         return None
 
@@ -666,6 +677,10 @@ def guardar_ultimo_pedido_navegador(nombre, telefono, carrito):
             json.dumps(payload, ensure_ascii=False),
             key="aplytec_set_ultimo_pedido",
         )
+        # El componente escribe en el navegador de forma asíncrona.
+        # Si Streamlit continúa y provoca un rerun demasiado pronto, la escritura
+        # puede quedar cancelada. La propia documentación recomienda esperar.
+        time.sleep(1.8)
         return True
     except Exception:
         return False
@@ -1011,7 +1026,7 @@ def render_carrito():
                     )
 
                     st.success("✅ Pedido enviado correctamente")
-                    st.caption("Este pedido queda disponible como ‘Repetir último pedido’ en este dispositivo.")
+                    st.caption("Este pedido se ha guardado para poder usar ‘Repetir último pedido’ en este navegador.")
                     st.session_state.pdf_generado = True
                     st.session_state.carrito = []
                     sync_query_params()
