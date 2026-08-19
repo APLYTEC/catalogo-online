@@ -638,23 +638,28 @@ def leer_ultimo_pedido_navegador():
 
 
 def guardar_ultimo_pedido_navegador(nombre, telefono, carrito):
+    payload = {
+        "nombre": str(nombre).strip(),
+        "telefono": str(telefono).strip(),
+        "items": [
+            {
+                "Código": str(item.get("Código", "")),
+                "Nombre": str(item.get("Nombre", "")),
+                "Cantidad": int(item.get("Cantidad", 0)),
+                "Tipo": str(item.get("Tipo", "unidades")),
+            }
+            for item in carrito
+            if int(item.get("Cantidad", 0)) > 0
+        ],
+    }
+
+    # Copia inmediata en la sesión actual. Así el botón Repetir pedido
+    # funciona nada más enviar, sin depender del tiempo de respuesta del componente.
+    st.session_state["aplytec_ultimo_pedido_memoria"] = payload
+
     if not LOCAL_STORAGE_DISPONIBLE:
         return False
     try:
-        payload = {
-            "nombre": str(nombre).strip(),
-            "telefono": str(telefono).strip(),
-            "items": [
-                {
-                    "Código": str(item.get("Código", "")),
-                    "Nombre": str(item.get("Nombre", "")),
-                    "Cantidad": int(item.get("Cantidad", 0)),
-                    "Tipo": str(item.get("Tipo", "unidades")),
-                }
-                for item in carrito
-                if int(item.get("Cantidad", 0)) > 0
-            ],
-        }
         local_s = LocalStorage()
         local_s.setItem(
             ULTIMO_PEDIDO_STORAGE_KEY,
@@ -740,9 +745,17 @@ def render_inicio(df):
         ir_a_catalogo()
         st.rerun()
 
-    ultimo_pedido = leer_ultimo_pedido_navegador()
-    if ultimo_pedido:
-        if st.button("🔁 Repetir último pedido", key="btn_repetir_ultimo_pedido", use_container_width=True):
+    # El componente de LocalStorage puede necesitar más de un render para devolver
+    # un valor. Primero usamos la copia de sesión, si existe, y después el navegador.
+    ultimo_pedido = st.session_state.get("aplytec_ultimo_pedido_memoria")
+    pedido_navegador = leer_ultimo_pedido_navegador()
+    if pedido_navegador:
+        ultimo_pedido = pedido_navegador
+        st.session_state["aplytec_ultimo_pedido_memoria"] = pedido_navegador
+
+    # El botón siempre se muestra. Si todavía no hay pedido guardado, explicamos el motivo.
+    if st.button("🔁 Repetir último pedido", key="btn_repetir_ultimo_pedido", use_container_width=True):
+        if ultimo_pedido:
             cargados, no_encontrados = cargar_pedido_guardado_en_carrito(ultimo_pedido, df)
             if cargados:
                 st.session_state.pantalla_actual = "carrito"
@@ -750,6 +763,8 @@ def render_inicio(df):
                 st.rerun()
             elif no_encontrados:
                 st.warning("No se han encontrado en el catálogo actual los productos del último pedido.")
+        else:
+            st.info("Todavía no hay un pedido guardado en este navegador. Envía un pedido con esta versión y después podrás repetirlo desde aquí.")
 
     st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
     st.markdown(
