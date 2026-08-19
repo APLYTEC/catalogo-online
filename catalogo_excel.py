@@ -1,6 +1,13 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
+
+try:
+    from streamlit_local_storage import LocalStorage
+    LOCAL_STORAGE_DISPONIBLE = True
+except Exception:
+    LocalStorage = None
+    LOCAL_STORAGE_DISPONIBLE = False
 import smtplib
 import ssl
 import base64
@@ -52,6 +59,8 @@ FAMILIAS_ORDENADAS = [
 
 FAMILIAS = {nombre: {"id": fam_id, "icono": icono} for nombre, fam_id, icono in FAMILIAS_ORDENADAS}
 FORMATOS = ["unidades", "cajas", "paquetes"]
+ULTIMO_PEDIDO_STORAGE_KEY = "aplytec_ultimo_pedido"
+
 
 
 class PedidoPDF(FPDF):
@@ -582,7 +591,128 @@ def render_menu_superior():
     )
 
 
-def render_inicio():
+
+def _extraer_valor_local_storage(valor):
+    """Normaliza los distintos formatos que puede devolver el componente."""
+    if valor is None:
+        return None
+    if isinstance(valor, dict):
+        if ULTIMO_PEDIDO_STORAGE_KEY in valor:
+            return valor.get(ULTIMO_PEDIDO_STORAGE_KEY)
+        if "value" in valor:
+            return valor.get("value")
+    return valor
+
+
+def _parsear_ultimo_pedido(valor):
+    valor = _extraer_valor_local_storage(valor)
+    if not valor:
+        return None
+    if isinstance(valor, dict):
+        data = valor
+    else:
+        try:
+            data = json.loads(str(valor))
+        except Exception:
+            return None
+    if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+        return None
+    return data
+
+
+def leer_ultimo_pedido_navegador():
+    if not LOCAL_STORAGE_DISPONIBLE:
+        return None
+    try:
+        local_s = LocalStorage()
+        valor = local_s.getItem(
+            ULTIMO_PEDIDO_STORAGE_KEY,
+            key="aplytec_get_ultimo_pedido",
+        )
+        # Algunas versiones del componente dejan además el valor en session_state.
+        if valor is None:
+            valor = st.session_state.get("aplytec_get_ultimo_pedido")
+        return _parsear_ultimo_pedido(valor)
+    except Exception:
+        return None
+
+
+def guardar_ultimo_pedido_navegador(nombre, telefono, carrito):
+    if not LOCAL_STORAGE_DISPONIBLE:
+        return False
+    try:
+        payload = {
+            "nombre": str(nombre).strip(),
+            "telefono": str(telefono).strip(),
+            "items": [
+                {
+                    "Código": str(item.get("Código", "")),
+                    "Nombre": str(item.get("Nombre", "")),
+                    "Cantidad": int(item.get("Cantidad", 0)),
+                    "Tipo": str(item.get("Tipo", "unidades")),
+                }
+                for item in carrito
+                if int(item.get("Cantidad", 0)) > 0
+            ],
+        }
+        local_s = LocalStorage()
+        local_s.setItem(
+            ULTIMO_PEDIDO_STORAGE_KEY,
+            json.dumps(payload, ensure_ascii=False),
+            key="aplytec_set_ultimo_pedido",
+        )
+        return True
+    except Exception:
+        return False
+
+
+def cargar_pedido_guardado_en_carrito(pedido, df):
+    """Recupera cantidades/formato, pero usa siempre nombre y precio actuales del catálogo."""
+    if not pedido or not isinstance(pedido.get("items"), list):
+        return 0, 0
+
+    por_codigo = {}
+    for _, fila in df.iterrows():
+        codigo = str(fila.get("Código", "")).strip()
+        if codigo:
+            por_codigo[codigo] = fila
+
+    nuevo_carrito = []
+    no_encontrados = 0
+    next_id = 1
+    for guardado in pedido["items"]:
+        codigo = str(guardado.get("Código", "")).strip()
+        fila = por_codigo.get(codigo)
+        if fila is None:
+            no_encontrados += 1
+            continue
+        cantidad = max(1, int(guardado.get("Cantidad", 1)))
+        tipo = str(guardado.get("Tipo", "unidades"))
+        if tipo not in FORMATOS:
+            tipo = "unidades"
+        nuevo_carrito.append({
+            "id": next_id,
+            "Código": codigo,
+            "Nombre": str(fila.get("Nombre", guardado.get("Nombre", ""))),
+            "Cantidad": cantidad,
+            "Tipo": tipo,
+            "PrecioUnitario": float(fila.get("Precio", 0.0)),
+        })
+        next_id += 1
+
+    if nuevo_carrito:
+        st.session_state.carrito = nuevo_carrito
+        st.session_state.next_cart_id = next_id
+        st.session_state.pdf_generado = False
+        if pedido.get("nombre"):
+            st.session_state["pedido_nombre"] = str(pedido.get("nombre", ""))
+        if pedido.get("telefono"):
+            st.session_state["pedido_telefono"] = str(pedido.get("telefono", ""))
+        sync_query_params()
+
+    return len(nuevo_carrito), no_encontrados
+
+def render_inicio(df):
     logo_src = obtener_logo_src()
 
     render_aply(APLY_SALUDA, "Hola, soy Aply. Entra al catálogo y prepara tu pedido en pocos pasos.", altura=280)
@@ -609,6 +739,17 @@ def render_inicio():
     if st.button("📦 Entrar al catálogo", key="btn_inicio_catalogo", type="primary", use_container_width=True):
         ir_a_catalogo()
         st.rerun()
+
+    ultimo_pedido = leer_ultimo_pedido_navegador()
+    if ultimo_pedido:
+        if st.button("🔁 Repetir último pedido", key="btn_repetir_ultimo_pedido", use_container_width=True):
+            cargados, no_encontrados = cargar_pedido_guardado_en_carrito(ultimo_pedido, df)
+            if cargados:
+                st.session_state.pantalla_actual = "carrito"
+                sync_query_params()
+                st.rerun()
+            elif no_encontrados:
+                st.warning("No se han encontrado en el catálogo actual los productos del último pedido.")
 
     st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
     st.markdown(
@@ -845,7 +986,17 @@ def render_carrito():
                     )
                     generar_pdf(nombre_limpio, resumen, total, comentarios, ruta_pdf)
                     enviar_pedido_por_email("Nuevo pedido de catálogo", resumen_txt, ruta_pdf)
+
+                    # Guardamos el pedido ANTES de vaciar el carrito para poder repetirlo
+                    # en futuras visitas desde este mismo navegador/dispositivo.
+                    guardar_ultimo_pedido_navegador(
+                        nombre_limpio,
+                        telefono_limpio,
+                        list(st.session_state.carrito),
+                    )
+
                     st.success("✅ Pedido enviado correctamente")
+                    st.caption("Este pedido queda disponible como ‘Repetir último pedido’ en este dispositivo.")
                     st.session_state.pdf_generado = True
                     st.session_state.carrito = []
                     sync_query_params()
@@ -1194,7 +1345,7 @@ render_menu_superior()
 render_boton_carrito_flotante()
 
 if st.session_state.pantalla_actual == "inicio":
-    render_inicio()
+    render_inicio(df)
 elif st.session_state.pantalla_actual == "contacto":
     render_contacto()
 elif st.session_state.pantalla_actual == "carrito":
