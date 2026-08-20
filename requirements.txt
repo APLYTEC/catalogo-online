@@ -3,3 +3,5 @@ pandas
 openpyxl
 fpdf
 streamlit-local-storage==0.0.25
+gspread>=6.1.2
+google-auth>=2.35.0
