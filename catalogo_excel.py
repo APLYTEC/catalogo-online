@@ -1422,7 +1422,11 @@ if qp.get("subfamilia"):
 if qp.get("pantalla") in {"inicio", "catalogo", "carrito", "contacto"}:
     st.session_state.pantalla_actual = qp.get("pantalla")
 
-st.set_page_config(page_title="Catálogo APLYTEC", layout="wide")
+st.set_page_config(
+    page_title="APLYTEC Catálogo",
+    page_icon="icono_catalogo.png",
+    layout="wide"
+)
 
 sync_query_params()
 df = cargar_datos()
