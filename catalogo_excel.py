@@ -110,9 +110,9 @@ def enviar_pedido_por_email(asunto, cuerpo, adjunto_path):
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
         server.login(
-    EMAIL_REMITENTE,
-    st.secrets["gmail"]["app_password"]
-)
+            EMAIL_REMITENTE,
+            st.secrets["gmail"]["app_password"]
+        )
         server.send_message(msg)
 
 
