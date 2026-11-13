@@ -21,7 +21,6 @@ CARPETA_IMAGENES = Path("imagenes")
 
 EMAIL_REMITENTE = "jguzmanraya@gmail.com"
 EMAIL_DESTINO = "jguzmanraya@gmail.com"
-CONTRASENA_APP = "utjb tfrt oqis bzcg"
 IVA = 0.21
 WHATSAPP_NUMERO = "+34647936356"
 WHATSAPP_LINK = "https://wa.me/34647936356"
@@ -110,7 +109,10 @@ def enviar_pedido_por_email(asunto, cuerpo, adjunto_path):
 
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-        server.login(EMAIL_REMITENTE, CONTRASENA_APP)
+        server.login(
+            EMAIL_REMITENTE,
+            st.secrets["gmail"]["app_password"]
+        )
         server.send_message(msg)
 
 
